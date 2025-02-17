@@ -1,7 +1,0 @@
-<resources>
-    <string name="app_name" translatable="false">Полет. Птичка</string>
-    <string name="title_home" translatable="false">Главная</string>
-    <string name="title_tasks" translatable="false">Задания</string>
-    <string name="title_profile" translatable="false">Профиль</string>
-    <string name="title_settings" translatable="false">Настройки</string>
-</resources>
