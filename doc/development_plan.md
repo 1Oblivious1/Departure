@@ -2,7 +2,7 @@
 
 #### Команда
 - **Виталик**: Базы данных (PostgreSQL, PgAdmin4).
-- **Леша**: Backend (ASP.NET Core, Visual Studio).
+- **Леша**: Backend (.NET Core, Visual Studio).
 - **Саша**: Frontend (React, Figma, Visual Studio Code).
 
 ---
