@@ -1,14 +1,29 @@
-using backend.Data;
-using Microsoft.EntityFrameworkCore;
+using backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Подключение PostgreSQL
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Добавляем сервисы в контейнер
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.WriteIndented = true; // Читаемый JSON
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true; // Нечувствительность к регистру
+    });
 
-builder.Services.AddControllers();
+// Загружаем данные пользователей при старте
+UserService.LoadData();
+
 var app = builder.Build();
 
+// Настройка конвейера HTTP-запросов
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+
+app.UseRouting();
+app.UseAuthorization();
+
 app.MapControllers();
+
 app.Run();

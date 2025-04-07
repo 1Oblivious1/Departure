@@ -2,9 +2,13 @@
   "ExpandedNodes": [
     "",
     "\\backend",
+    "\\backend\\bin",
+    "\\backend\\bin\\Debug",
+    "\\backend\\bin\\Debug\\net8.0",
     "\\backend\\Controllers",
-    "\\backend\\Data"
+    "\\backend\\Properties",
+    "\\backend\\Services"
   ],
-  "SelectedNode": "\\backend\\backend.csproj",
+  "SelectedNode": "\\backend\\bin\\Debug\\net8.0\\users.json",
   "PreviewInSolutionExplorer": false
 }

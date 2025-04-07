@@ -1,42 +1,33 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Linq;
+using backend.Models;
+using backend.Services;
 
-namespace backend.Controllers
+[ApiController]
+[Route("api/auth")]
+public class AuthController : ControllerBase
 {
-    [ApiController]
-    [Route("api/auth")]
-    public class AuthController : ControllerBase
+    public AuthController()
     {
-        private readonly AppDbContext _db;
+        UserService.LoadData(); // Загружаем данные при старте
+    }
 
-        public AuthController(AppDbContext db)
-        {
-            _db = db;
-        }
+    [HttpPost("register")]
+    public IActionResult Register([FromBody] User user)
+    {
+        if (UserService.FindUser(user.Username) != null)
+            return BadRequest("User already exists");
 
-        // Регистрация
-        [HttpPost("register")]
-        public IActionResult Register([FromBody] User user)
-        {
-            if (_db.Users.Any(u => u.Username == user.Username))
-                return BadRequest("User already exists");
+        UserService.AddUser(user);
+        return Ok("Registered");
+    }
 
-            _db.Users.Add(user);
-            _db.SaveChanges();
-            return Ok("Registered");
-        }
+    [HttpPost("login")]
+    public IActionResult Login([FromBody] User user)
+    {
+        var existingUser = UserService.FindUser(user.Username);
+        if (existingUser == null || existingUser.Password != user.Password)
+            return Unauthorized("Invalid credentials");
 
-        // Авторизация
-        [HttpPost("login")]
-        public IActionResult Login([FromBody] User user)
-        {
-            var existingUser = _db.Users
-                .FirstOrDefault(u => u.Username == user.Username && u.Password == user.Password);
-
-            if (existingUser == null)
-                return Unauthorized("Invalid credentials");
-
-            return Ok("Logged in");
-        }
+        return Ok("Logged in");
     }
 }
