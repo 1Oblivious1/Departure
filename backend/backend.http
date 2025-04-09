@@ -1,27 +1,32 @@
-@backend_HostAddress = http://localhost:5000
+@backend_HostAddress = http://localhost:5234
 
-### �����������
+### Регистрация нового пользователя
+# Создаёт нового пользователя с именем, email и паролем
 POST {{backend_HostAddress}}/api/auth/register
 Content-Type: application/json
 
 {
-  "username": "test3",
+  "name": "test1",
+  "mail": "test1@example.com",
   "password": "123456"
 }
 
-### �������� ������
+### Неуспешный вход (неверные учетные данные)
+# Проверяет случай с несуществующим пользователем или неверным паролем
 POST {{backend_HostAddress}}/api/auth/login
 Content-Type: application/json
 
 {
-  "username": "AAA"
+  "mail": "aaa@example.com",
+  "password": "wrongpassword"
 }
 
-### �����������
+### Успешный вход
+# Предполагается, что пользователь уже зарегистрирован через предыдущий запрос
 POST {{backend_HostAddress}}/api/auth/login
 Content-Type: application/json
 
 {
-  "username": "test2",
+  "mail": "test1@example.com",
   "password": "123456"
 }

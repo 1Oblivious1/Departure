@@ -1,33 +1,59 @@
 using Microsoft.AspNetCore.Mvc;
 using backend.Models;
-using backend.Services;
+using backend.Services.User_serv;
 
 [ApiController]
 [Route("api/auth")]
 public class AuthController : ControllerBase
 {
-    public AuthController()
+    private readonly IUserService _userService;
+
+    public AuthController(IUserService userService)
     {
-        UserService.LoadData(); // Загружаем данные при старте
+        _userService = userService;
     }
 
     [HttpPost("register")]
-    public IActionResult Register([FromBody] User user)
+    public IActionResult Register([FromBody] RegisterRequest request)
     {
-        if (UserService.FindUser(user.Username) != null)
-            return BadRequest("User already exists");
-
-        UserService.AddUser(user);
-        return Ok("Registered");
+        try
+        {
+            _userService.RegisterUser(request.Name, request.Mail, request.Password, DateTime.Now);
+            return Ok("Р—Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅ");
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     [HttpPost("login")]
-    public IActionResult Login([FromBody] User user)
+    public IActionResult Login([FromBody] LoginRequest request)
     {
-        var existingUser = UserService.FindUser(user.Username);
-        if (existingUser == null || existingUser.Password != user.Password)
-            return Unauthorized("Invalid credentials");
+        try
+        {
+            var user = _userService.LoginUser(request.Mail, request.Password);
+            if (user == null)
+                return Unauthorized("РќРµРІРµСЂРЅС‹Рµ СѓС‡РµС‚РЅС‹Рµ РґР°РЅРЅС‹Рµ");
 
-        return Ok("Logged in");
+            return Ok(new { UserId = user.Id });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ex.Message);
+        }
     }
+}
+
+public class RegisterRequest
+{
+    public string Name { get; set; } = null!;
+    public string Mail { get; set; } = null!;
+    public string Password { get; set; } = null!;
+}
+
+public class LoginRequest
+{
+    public string Mail { get; set; } = null!;
+    public string Password { get; set; } = null!;
 }
