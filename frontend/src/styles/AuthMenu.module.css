@@ -1,0 +1,16 @@
+.menu {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.link {
+    text-decoration: none;
+    color: #007bff;
+    font-weight: bold;
+}
+
+.link:hover {
+    text-decoration: underline;
+}
