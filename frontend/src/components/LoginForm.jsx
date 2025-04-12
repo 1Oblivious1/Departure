@@ -1,35 +1,39 @@
 import React, { useState } from 'react';
 import { loginUser } from '../services/api';
 import { useNavigate } from 'react-router-dom';
-import styles from '../styles/Form.module.css';
+import { useAuth } from '../context/AuthContext';
 
 const LoginForm = () => {
-    const [credentials, setCredentials] = useState({ email: '', password: '' });
+    const [credentials, setCredentials] = useState({ mail: '', password: '' });
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const { login } = useAuth();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         try {
-            const data = await loginUser(credentials);
-            alert(`Добро пожаловать! Ваш ID: ${data.UserId}`);
+            const data = await loginUser(credentials); // { userId: 2 }
+            console.log('Получен userId:', data.userId); // Логируем userId
+            login(data.userId); // Передаем userId в контекст
+            alert(`Добро пожаловать!`);
             navigate('/');
         } catch (err) {
+            console.error('Ошибка входа:', err.message);
             setError(err.message);
         }
     };
 
     return (
-        <div className={styles.formContainer}>
+        <div className="container">
             <h2>Вход</h2>
-            {error && <p className={styles.error}>{error}</p>}
+            {error && <p className="error">{error}</p>}
             <form onSubmit={handleSubmit}>
                 <input
-                    type="email"
-                    placeholder="Email"
-                    value={credentials.email}
-                    onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+                    type="mail"
+                    placeholder="Mail"
+                    value={credentials.mail}
+                    onChange={(e) => setCredentials({ ...credentials, mail: e.target.value })}
                     required
                 />
                 <input

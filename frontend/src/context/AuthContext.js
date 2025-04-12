@@ -7,20 +7,20 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            setUser({ token });
+        const userId = localStorage.getItem('userId');
+        if (userId) {
+            setUser({ userId });
         }
         setLoading(false);
     }, []);
 
-    const login = (token) => {
-        localStorage.setItem('token', token);
-        setUser({ token });
+    const login = (userId) => {
+        localStorage.setItem('userId', userId);
+        setUser({ userId });
     };
 
     const logout = () => {
-        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
         setUser(null);
     };
 
@@ -29,4 +29,8 @@ export const AuthProvider = ({ children }) => {
             {children}
         </AuthContext.Provider>
     );
+};
+
+export const useAuth = () => {
+    return React.useContext(AuthContext);
 };

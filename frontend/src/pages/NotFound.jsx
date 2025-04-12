@@ -2,8 +2,8 @@ import React from 'react';
 
 const NotFound = () => {
     return (
-        <div>
-            <h1>404 - Страница не найдена</h1>
+        <div className="container">
+            <h2>Страница не найдена</h2>
             <p>Перейдите на <a href="/">главную страницу</a>.</p>
         </div>
     );

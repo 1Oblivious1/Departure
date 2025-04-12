@@ -1,29 +1,31 @@
 import React, { useState } from 'react';
 import { registerUser } from '../services/api';
 import { useNavigate } from 'react-router-dom';
-import styles from '../styles/Form.module.css';
 
 const RegisterForm = () => {
-    const [userData, setUserData] = useState({ name: '', email: '', password: '' });
+    const [userData, setUserData] = useState({ name: '', mail: '', password: '' });
     const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setSuccess('');
         try {
             await registerUser(userData);
-            alert('Вы успешно зарегистрировались!');
-            navigate('/login');
+            setSuccess('Вы успешно зарегистрировались!');
+            setTimeout(() => navigate('/login'), 2000); // Перенаправление на страницу входа
         } catch (err) {
             setError(err.message);
         }
     };
 
     return (
-        <div className={styles.formContainer}>
+        <div className="container">
             <h2>Регистрация</h2>
-            {error && <p className={styles.error}>{error}</p>}
+            {error && <p className="error">{error}</p>}
+            {success && <p className="success">{success}</p>}
             <form onSubmit={handleSubmit}>
                 <input
                     type="text"
@@ -33,10 +35,10 @@ const RegisterForm = () => {
                     required
                 />
                 <input
-                    type="email"
-                    placeholder="Email"
-                    value={userData.email}
-                    onChange={(e) => setUserData({ ...userData, email: e.target.value })}
+                    type="mail"
+                    placeholder="Mail"
+                    value={userData.mail}
+                    onChange={(e) => setUserData({ ...userData, mail: e.target.value })}
                     required
                 />
                 <input
