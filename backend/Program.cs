@@ -31,6 +31,8 @@ if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
 }
 
+app.MapGet("/ping", () => "API работает!");
+
 app.UseRouting();
 
 app.UseCors("AllowFrontend");

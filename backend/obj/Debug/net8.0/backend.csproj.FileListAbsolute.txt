@@ -141,3 +141,4 @@ C:\Users\anboy\Desktop\Университет\Программы\Project\backend
 C:\Users\anboy\Desktop\Университет\Программы\Project\backend\obj\Debug\net8.0\backend.pdb
 C:\Users\anboy\Desktop\Университет\Программы\Project\backend\obj\Debug\net8.0\backend.genruntimeconfig.cache
 C:\Users\anboy\Desktop\Университет\Программы\Project\backend\obj\Debug\net8.0\ref\backend.dll
+C:\Users\Alexey\source\repos\Departure\backend\bin\Debug\net8.0\Npgsql.dll

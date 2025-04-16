@@ -1,4 +1,7 @@
-@backend_HostAddress = http://localhost:5000
+@backend_HostAddress = http://localhost:5234
+
+### Тест сервера
+GET {{backend_HostAddress}}/ping  
 
 ### Регистрация нового пользователя
 # Создаёт нового пользователя с именем, email и паролем
@@ -27,6 +30,6 @@ POST {{backend_HostAddress}}/api/auth/login
 Content-Type: application/json
 
 {
-  "mail": "Alex@example.com",
+  "mail": "test1@example.com",
   "password": "123456"
 }
