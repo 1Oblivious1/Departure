@@ -61,12 +61,14 @@ CREATE TABLE "User" (
     idUserProfilePrivate INT REFERENCES UserProfilePrivate(idUserProfilePrivate) ON DELETE SET NULL
 );
 
--- Таблица задач
+-- Таблица задач с координатами
 CREATE TABLE Task (
     idTask SERIAL PRIMARY KEY,
     title VARCHAR(30) NOT NULL,
     description VARCHAR(200),
-    difficulty TaskDifficulty NOT NULL
+    difficulty TaskDifficulty NOT NULL,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL
 );
 
 -- Таблица выполнения задач пользователями

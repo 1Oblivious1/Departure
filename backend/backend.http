@@ -33,3 +33,42 @@ Content-Type: application/json
   "mail": "test1@example.com",
   "password": "123456"
 }
+
+### Создание первого задания
+POST {{backend_HostAddress}}/api/task
+Content-Type: application/json
+
+{
+    "title": "Сбор мусора в парке",
+    "description": "Соберите мусор в центральном парке города",
+    "difficulty": 0,
+    "latitude": 55.7558,
+    "longitude": 37.6173
+}
+
+### Создание второго задания
+POST {{backend_HostAddress}}/api/task
+Content-Type: application/json
+
+{
+    "title": "Посадка деревьев",
+    "description": "Посадите 5 саженцев деревьев в городском сквере",
+    "difficulty": 1,
+    "latitude": 55.7500,
+    "longitude": 37.6000
+}
+
+### Создание третьего задания
+POST {{backend_HostAddress}}/api/task
+Content-Type: application/json
+
+{
+    "title": "Очистка реки",
+    "description": "Помогите очистить берег реки от мусора",
+    "difficulty": 2,
+    "latitude": 55.7600,
+    "longitude": 37.6200
+}
+
+### Получение списка всех заданий
+GET {{backend_HostAddress}}/api/task

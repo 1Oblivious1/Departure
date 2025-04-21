@@ -1,4 +1,6 @@
+using backend.Repositories.Task_repo;
 using backend.Repositories.User_repo;
+using backend.Services.Task_serv;
 using backend.Services.User_serv;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 
@@ -11,8 +13,13 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 
+// Регистрация сервисов пользователей
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
+
+// Регистрация сервисов заданий
+builder.Services.AddScoped<ITaskRepository, TaskRepository>();
+builder.Services.AddScoped<ITaskService, TaskService>();
 
 builder.Services.AddCors(options =>
 {
@@ -31,7 +38,7 @@ if (app.Environment.IsDevelopment())
     app.UseDeveloperExceptionPage();
 }
 
-app.MapGet("/ping", () => "API ��������!");
+app.MapGet("/ping", () => "API работает!");
 
 app.UseRouting();
 
