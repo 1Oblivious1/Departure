@@ -106,14 +106,14 @@
   {
     "ContainingType": "backend.Controllers.TaskController",
     "Method": "CompleteTask",
-    "RelativePath": "api/Task/complete/{submissionId}",
+    "RelativePath": "api/Task/complete",
     "HttpMethod": "POST",
     "IsController": true,
     "Order": 0,
     "Parameters": [
       {
-        "Name": "submissionId",
-        "Type": "System.Int32",
+        "Name": "request",
+        "Type": "backend.Controllers.CompleteTaskRequest",
         "IsRequired": true
       }
     ],
@@ -198,6 +198,58 @@
     "ReturnTypes": [
       {
         "Type": "System.Collections.Generic.List\u00601[[backend.Models.Task_models.TaskSubmission, backend, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "backend.Controllers.TaskController",
+    "Method": "GetUserTaskIds",
+    "RelativePath": "api/Task/user/{userId}/task-ids",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "backend.Models.Task_models.UserTaskIdsResponse",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "backend.Controllers.TaskController",
+    "Method": "GetUserTasks",
+    "RelativePath": "api/Task/user/{userId}/tasks",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "userId",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.List\u00601[[backend.Models.Task_models.UserTaskResponse, backend, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
         "MediaTypes": [
           "text/plain",
           "application/json",

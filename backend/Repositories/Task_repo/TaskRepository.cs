@@ -128,7 +128,8 @@ namespace backend.Repositories.Task_repo
                 await connection.OpenAsync();
                 using (var command = new NpgsqlCommand(
                     "INSERT INTO TaskSubmission (status, started_at, idUser, idTask) " +
-                    "VALUES (@status, @startedAt, @userId, @taskId) RETURNING idTaskSubmission", connection))
+                    "VALUES (@status::tasksubmissionstatus, @startedAt, @userId, @taskId) " +
+                    "RETURNING idTaskSubmission", connection))
                 {
                     command.Parameters.AddWithValue("@status", TaskSubmissionStatus.Pending.ToString());
                     command.Parameters.AddWithValue("@startedAt", DateTime.Now);
@@ -149,18 +150,21 @@ namespace backend.Repositories.Task_repo
             }
         }
 
-        public async Task<TaskSubmission> CompleteTaskAsync(int submissionId)
+        public async Task<TaskSubmission> CompleteTaskAsync(int userId, int taskId, string photoUrl)
         {
             using (var connection = new NpgsqlConnection(_connectionString))
             {
                 await connection.OpenAsync();
                 using (var command = new NpgsqlCommand(
-                    "UPDATE TaskSubmission SET status = @status, ended_at = @endedAt " +
-                    "WHERE idTaskSubmission = @submissionId RETURNING *", connection))
+                    "UPDATE TaskSubmission SET status = @status::tasksubmissionstatus, ended_at = @endedAt, photo_url = @photoUrl " +
+                    "WHERE idUser = @userId AND idTask = @taskId AND status = 'Pending'::tasksubmissionstatus " +
+                    "RETURNING *", connection))
                 {
                     command.Parameters.AddWithValue("@status", TaskSubmissionStatus.Completed.ToString());
                     command.Parameters.AddWithValue("@endedAt", DateTime.Now);
-                    command.Parameters.AddWithValue("@submissionId", submissionId);
+                    command.Parameters.AddWithValue("@photoUrl", photoUrl);
+                    command.Parameters.AddWithValue("@userId", userId);
+                    command.Parameters.AddWithValue("@taskId", taskId);
 
                     using (var reader = await command.ExecuteReaderAsync())
                     {
@@ -173,7 +177,8 @@ namespace backend.Repositories.Task_repo
                                 StartedAt = reader.GetDateTime(reader.GetOrdinal("started_at")),
                                 EndedAt = reader.GetDateTime(reader.GetOrdinal("ended_at")),
                                 IdUser = reader.GetInt32(reader.GetOrdinal("idUser")),
-                                IdTask = reader.GetInt32(reader.GetOrdinal("idTask"))
+                                IdTask = reader.GetInt32(reader.GetOrdinal("idTask")),
+                                PhotoUrl = reader.GetString(reader.GetOrdinal("photo_url"))
                             };
                         }
                     }
@@ -213,6 +218,102 @@ namespace backend.Repositories.Task_repo
                 }
             }
             return null;
+        }
+
+        public async Task<List<(TaskModel Task, TaskSubmission Submission)>> GetUserTasksWithSubmissionsAsync(int userId)
+        {
+            var result = new List<(TaskModel Task, TaskSubmission Submission)>();
+            
+            using (var connection = new NpgsqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                using (var command = new NpgsqlCommand(
+                    @"SELECT t.*, ts.* 
+                      FROM Task t
+                      JOIN TaskSubmission ts ON t.idTask = ts.idTask
+                      WHERE ts.idUser = @userId
+                      ORDER BY 
+                          CASE WHEN ts.status = 'Pending'::tasksubmissionstatus THEN 0 ELSE 1 END,
+                          CASE 
+                              WHEN ts.status = 'Pending'::tasksubmissionstatus THEN ts.started_at 
+                              ELSE ts.ended_at 
+                          END DESC", connection))
+                {
+                    command.Parameters.AddWithValue("@userId", userId);
+
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            var task = new TaskModel
+                            {
+                                IdTask = reader.GetInt32(reader.GetOrdinal("idTask")),
+                                Title = reader.GetString(reader.GetOrdinal("title")),
+                                Description = reader.GetString(reader.GetOrdinal("description")),
+                                Difficulty = (TaskDifficulty)Enum.Parse(typeof(TaskDifficulty), reader.GetString(reader.GetOrdinal("difficulty"))),
+                                Latitude = reader.GetDouble(reader.GetOrdinal("latitude")),
+                                Longitude = reader.GetDouble(reader.GetOrdinal("longitude"))
+                            };
+
+                            var submission = new TaskSubmission
+                            {
+                                IdTaskSubmission = reader.GetInt32(reader.GetOrdinal("idTaskSubmission")),
+                                Status = (TaskSubmissionStatus)Enum.Parse(typeof(TaskSubmissionStatus), reader.GetString(reader.GetOrdinal("status"))),
+                                StartedAt = reader.GetDateTime(reader.GetOrdinal("started_at")),
+                                EndedAt = reader.IsDBNull(reader.GetOrdinal("ended_at")) ? null : reader.GetDateTime(reader.GetOrdinal("ended_at")),
+                                IdUser = reader.GetInt32(reader.GetOrdinal("idUser")),
+                                IdTask = reader.GetInt32(reader.GetOrdinal("idTask")),
+                                PhotoUrl = reader.IsDBNull(reader.GetOrdinal("photo_url")) ? null : reader.GetString(reader.GetOrdinal("photo_url"))
+                            };
+
+                            result.Add((task, submission));
+                        }
+                    }
+                }
+            }
+            return result;
+        }
+
+        public async Task<UserTaskIdsResponse> GetUserTaskIdsAsync(int userId)
+        {
+            var response = new UserTaskIdsResponse
+            {
+                ActiveTaskIds = new List<int>(),
+                CompletedTaskIds = new List<int>()
+            };
+
+            using (var connection = new NpgsqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                using (var command = new NpgsqlCommand(
+                    @"SELECT idTask, status 
+                      FROM TaskSubmission 
+                      WHERE idUser = @userId 
+                      AND status IN ('Pending'::tasksubmissionstatus, 'Completed'::tasksubmissionstatus)", 
+                    connection))
+                {
+                    command.Parameters.AddWithValue("@userId", userId);
+
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            var taskId = reader.GetInt32(reader.GetOrdinal("idTask"));
+                            var status = reader.GetString(reader.GetOrdinal("status"));
+
+                            if (status == "Pending")
+                            {
+                                response.ActiveTaskIds.Add(taskId);
+                            }
+                            else if (status == "Completed")
+                            {
+                                response.CompletedTaskIds.Add(taskId);
+                            }
+                        }
+                    }
+                }
+            }
+            return response;
         }
     }
 } 

@@ -19,6 +19,8 @@ namespace backend.Models.Task_models
         
         [Required]
         public int IdTask { get; set; }
+        
+        public string PhotoUrl { get; set; }
     }
 
     public enum TaskSubmissionStatus

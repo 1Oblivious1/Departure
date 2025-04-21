@@ -72,3 +72,28 @@ Content-Type: application/json
 
 ### Получение списка всех заданий
 GET {{backend_HostAddress}}/api/task
+
+### Начать выполнение задания
+POST {{backend_HostAddress}}/api/task/start
+Content-Type: application/json
+
+{
+    "userId": 1,
+    "taskId": 1
+}
+
+### Завершить задание с фото
+POST {{backend_HostAddress}}/api/task/complete
+Content-Type: application/json
+
+{
+    "userId": 1,
+    "taskId": 1,
+    "photoUrl": "https://static-cse.canva.com/blob/191106/00_verzosa_winterlandscapes_jakob-owens-tb-2640x1485.jpg"
+}
+
+### Получить список заданий пользователя
+GET {{backend_HostAddress}}/api/task/user/1/tasks
+
+### Получить список id заданий, связанных с данным пользователем
+GET {{backend_HostAddress}}/api/task/user/1/task-ids

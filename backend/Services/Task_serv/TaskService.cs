@@ -37,14 +37,24 @@ namespace backend.Services.Task_serv
             return await _taskRepository.StartTaskAsync(userId, taskId);
         }
 
-        public async Task<TaskSubmission> CompleteTaskAsync(int submissionId)
+        public async Task<TaskSubmission> CompleteTaskAsync(int userId, int taskId, string photoUrl)
         {
-            return await _taskRepository.CompleteTaskAsync(submissionId);
+            return await _taskRepository.CompleteTaskAsync(userId, taskId, photoUrl);
         }
 
         public async Task<TaskSubmission> FailTaskAsync(int submissionId)
         {
             return await _taskRepository.FailTaskAsync(submissionId);
+        }
+
+        public async Task<List<(TaskModel Task, TaskSubmission Submission)>> GetUserTasksWithSubmissionsAsync(int userId)
+        {
+            return await _taskRepository.GetUserTasksWithSubmissionsAsync(userId);
+        }
+
+        public async Task<UserTaskIdsResponse> GetUserTaskIdsAsync(int userId)
+        {
+            return await _taskRepository.GetUserTaskIdsAsync(userId);
         }
     }
 } 
