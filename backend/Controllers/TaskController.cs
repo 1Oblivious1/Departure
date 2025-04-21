@@ -63,10 +63,10 @@ namespace backend.Controllers
             return Ok(submission);
         }
 
-        [HttpPost("complete/{submissionId}")]
-        public async Task<ActionResult<TaskSubmission>> CompleteTask(int submissionId)
+        [HttpPost("complete")]
+        public async Task<ActionResult<TaskSubmission>> CompleteTask([FromBody] CompleteTaskRequest request)
         {
-            var submission = await _taskService.CompleteTaskAsync(submissionId);
+            var submission = await _taskService.CompleteTaskAsync(request.UserId, request.TaskId, request.PhotoUrl);
             if (submission == null)
             {
                 return NotFound();
@@ -84,6 +84,35 @@ namespace backend.Controllers
             }
             return Ok(submission);
         }
+
+        [HttpGet("user/{userId}/tasks")]
+        public async Task<ActionResult<List<UserTaskResponse>>> GetUserTasks(int userId)
+        {
+            var tasks = await _taskService.GetUserTasksWithSubmissionsAsync(userId);
+            var response = tasks.Select(t => new UserTaskResponse
+            {
+                TaskId = t.Task.IdTask,
+                Title = t.Task.Title,
+                Description = t.Task.Description,
+                Difficulty = t.Task.Difficulty,
+                Latitude = t.Task.Latitude,
+                Longitude = t.Task.Longitude,
+                SubmissionId = t.Submission.IdTaskSubmission,
+                Status = t.Submission.Status,
+                StartedAt = t.Submission.StartedAt,
+                EndedAt = t.Submission.EndedAt,
+                PhotoUrl = t.Submission.PhotoUrl
+            }).ToList();
+            
+            return Ok(response);
+        }
+
+        [HttpGet("user/{userId}/task-ids")]
+        public async Task<ActionResult<UserTaskIdsResponse>> GetUserTaskIds(int userId)
+        {
+            var taskIds = await _taskService.GetUserTaskIdsAsync(userId);
+            return Ok(taskIds);
+        }
     }
 
     public class CreateTaskRequest
@@ -99,5 +128,12 @@ namespace backend.Controllers
     {
         public int UserId { get; set; }
         public int TaskId { get; set; }
+    }
+
+    public class CompleteTaskRequest
+    {
+        public int UserId { get; set; }
+        public int TaskId { get; set; }
+        public string PhotoUrl { get; set; }
     }
 } 

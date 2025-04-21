@@ -74,10 +74,11 @@ CREATE TABLE Task (
 CREATE TABLE TaskSubmission (
     idTaskSubmission SERIAL PRIMARY KEY,
     status TaskSubmissionStatus NOT NULL,
-    started_at DATE NOT NULL,
-    ended_at DATE,
-    idUser INT REFERENCES "User"(idUser) ON DELETE CASCADE,
-    idTask INT REFERENCES Task(idTask) ON DELETE CASCADE
+    started_at TIMESTAMP NOT NULL,
+    ended_at TIMESTAMP,
+    photo_url TEXT,
+    idUser INTEGER REFERENCES "User"(idUser) ON DELETE CASCADE,
+    idTask INTEGER REFERENCES Task(idTask) ON DELETE CASCADE
 );
 
 -- Таблица новостной ленты, связана с выполнением задач
