@@ -7,7 +7,6 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import ExploreIcon from '@mui/icons-material/Explore';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import VerifiedIcon from '@mui/icons-material/Verified';
-import StarIcon from '@mui/icons-material/Star';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import LanguageIcon from '@mui/icons-material/Language';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -465,17 +464,12 @@ export default function ProfilePage() {
               }}
             >
               <Tab 
-                label="Путешествия" 
+                label="Посты" 
                 icon={<ExploreIcon />} 
                 iconPosition="start"
               />
               <Tab 
-                label="Избранное" 
-                icon={<FavoriteIcon />} 
-                iconPosition="start"
-              />
-              <Tab 
-                label="Сохраненные" 
+                label="Сохраненное" 
                 icon={<BookmarkIcon />} 
                 iconPosition="start"
               />
@@ -595,15 +589,7 @@ export default function ProfilePage() {
             <TabPanel value={activeTab} index={1}>
               <Box sx={{ p: 3, textAlign: 'center' }}>
                 <Typography variant="body1" color="text.secondary">
-                  Здесь будут отображаться ваши любимые путешествия
-                </Typography>
-              </Box>
-            </TabPanel>
-            
-            <TabPanel value={activeTab} index={2}>
-              <Box sx={{ p: 3, textAlign: 'center' }}>
-                <Typography variant="body1" color="text.secondary">
-                  Здесь будут отображаться ваши сохраненные путешествия
+                  Здесь будут отображаться ваши сохраненные задания
                 </Typography>
               </Box>
             </TabPanel>
