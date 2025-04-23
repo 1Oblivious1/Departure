@@ -26,11 +26,12 @@ namespace backend.Repositories.User_repo
 
             // Реализация create_user_profile_public
             using var cmd = new NpgsqlCommand(
-                "INSERT INTO UserProfilePublic (name, points, created_at) " +
-                "VALUES (@p_name, @p_points, @p_created_at) RETURNING idUserProfilePublic", conn);
+                "INSERT INTO UserProfilePublic (name, points, created_at, avatarUrl) " +
+                "VALUES (@p_name, @p_points, @p_created_at, @p_avatarUrl) RETURNING idUserProfilePublic", conn);
             cmd.Parameters.AddWithValue("p_name", profile.Name);
             cmd.Parameters.AddWithValue("p_points", profile.Points);
             cmd.Parameters.AddWithValue("p_created_at", profile.CreatedAt);
+            cmd.Parameters.AddWithValue("p_avatarUrl", profile.AvatarUrl);
 
             profile.IdUserProfilePublic = (int)cmd.ExecuteScalar();
         }
@@ -96,7 +97,7 @@ namespace backend.Repositories.User_repo
 
             // Оставляем как есть, так как это не было в SQL-функциях, но полезно
             using var cmd = new NpgsqlCommand(
-                "SELECT idUserProfilePublic, name, points, created_at " +
+                "SELECT idUserProfilePublic, name, points, created_at, avatarUrl " +
                 "FROM UserProfilePublic WHERE name = @name", conn);
             cmd.Parameters.AddWithValue("name", name);
 
@@ -108,7 +109,8 @@ namespace backend.Repositories.User_repo
                     IdUserProfilePublic = reader.GetInt32(0),
                     Name = reader.GetString(1),
                     Points = reader.GetInt32(2),
-                    CreatedAt = reader.GetDateTime(3)
+                    CreatedAt = reader.GetDateTime(3),
+                    AvatarUrl = reader.GetString(4)
                 };
             }
             return null;

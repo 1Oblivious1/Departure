@@ -120,12 +120,14 @@ GET {{backend_HostAddress}}/api/post/1
     "longitude": 37.6173,       // Долгота места задания
     "idUserProfilePublic": 1,   // ID публичного профиля
     "name": "Имя",              // Имя пользователя
+    "avatarUrl": "example.com"  // Аватарка пользователя
     "comments": [               // Список комментариев
         {
             "idComment": 1,     // ID комментария
             "text": "Текст",    // Текст комментария
             "authorName": "Имя", // Имя автора
             "idUserProfilePublic": 1, // ID публичного профиля автора
+            "avatarUrl": "example.com"  // Аватарка пользователя
             "submittedAt": "2024-04-21T..." // Время отправки
         }
     ]

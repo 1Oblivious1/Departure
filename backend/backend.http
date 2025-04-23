@@ -11,7 +11,8 @@ Content-Type: application/json
 {
   "name": "test1",
   "mail": "test1@example.com",
-  "password": "123456"
+  "password": "123456",
+  "avatarUrl": "https://i.pinimg.com/originals/d6/7c/74/d67c74e8c73a7c31005702fbe3a0b46a.jpg"
 }
 
 ### Неуспешный вход (неверные учетные данные)
@@ -121,4 +122,4 @@ Content-Type: application/json
 }
 
 ### Получение достижений пользователя
-GET {{backend_HostAddress}}/api/achievement/user/5
+GET {{backend_HostAddress}}/api/achievement/user/1

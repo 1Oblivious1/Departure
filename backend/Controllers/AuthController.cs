@@ -18,8 +18,8 @@ public class AuthController : ControllerBase
     {
         try
         {
-            _userService.RegisterUser(request.Name, request.Mail, request.Password, DateTime.Now);
-            return Ok("Зарегистрирован");
+            var user = _userService.RegisterUser(request.Name, request.Mail, request.Password, DateTime.Now, request.AvatarUrl);
+            return Ok(new { UserId = user.Id });
         }
         catch (Exception ex)
         {
@@ -50,6 +50,7 @@ public class RegisterRequest
     public string Name { get; set; } = null!;
     public string Mail { get; set; } = null!;
     public string Password { get; set; } = null!;
+    public string AvatarUrl { get; set; } = null!;
 }
 
 public class LoginRequest

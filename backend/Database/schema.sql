@@ -27,8 +27,9 @@ DROP TABLE IF EXISTS UserProfilePublic CASCADE;
 -- Таблица публичного профиля пользователя
 CREATE TABLE UserProfilePublic (
     idUserProfilePublic SERIAL PRIMARY KEY,
-    name VARCHAR(45) NOT NULL,
-    points INT DEFAULT 0,
+    name VARCHAR(255) NOT NULL,
+    points INTEGER DEFAULT 0,
+    avatarUrl VARCHAR(255) DEFAULT 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRAd5avdba8EiOZH8lmV3XshrXx7dKRZvhx-A&s',
     created_at DATE NOT NULL
 );
 

@@ -423,7 +423,8 @@ namespace backend.Repositories.Task_repo
                     t.latitude,
                     t.longitude,
                     upp.idUserProfilePublic,
-                    upp.name
+                    upp.name,
+                    upp.avatarUrl
                 FROM NewsFeed nf
                 JOIN TaskSubmission ts ON nf.idTaskSubmission = ts.idTaskSubmission
                 JOIN Task t ON ts.idTask = t.idTask
@@ -453,6 +454,7 @@ namespace backend.Repositories.Task_repo
                     Longitude = reader.GetDouble(11),
                     IdUserProfilePublic = reader.GetInt32(12),
                     Name = reader.GetString(13),
+                    AvatarUrl = reader.GetString(14),
                     Comments = new List<Comment>()
                 });
             }
@@ -476,6 +478,7 @@ namespace backend.Repositories.Task_repo
                     c.text, 
                     upp.name,
                     upp.idUserProfilePublic,
+                    upp.avatarUrl,
                     c.submitted_at
                 FROM Comment c
                 JOIN ""User"" u ON c.author = u.idUser
@@ -497,7 +500,8 @@ namespace backend.Repositories.Task_repo
                     Text = reader.GetString(1),
                     AuthorName = reader.GetString(2),
                     IdUserProfilePublic = reader.GetInt32(3),
-                    SubmittedAt = reader.GetDateTime(4)
+                    AvatarUrl = reader.GetString(4),
+                    SubmittedAt = reader.GetDateTime(5)
                 });
             }
 
@@ -546,7 +550,8 @@ namespace backend.Repositories.Task_repo
                     t.latitude,
                     t.longitude,
                     upp.idUserProfilePublic,
-                    upp.name
+                    upp.name,
+                    upp.avatarUrl
                 FROM NewsFeed nf
                 JOIN TaskSubmission ts ON nf.idTaskSubmission = ts.idTaskSubmission
                 JOIN Task t ON ts.idTask = t.idTask
@@ -580,6 +585,7 @@ namespace backend.Repositories.Task_repo
                 Longitude = reader.GetDouble(12),
                 IdUserProfilePublic = reader.GetInt32(13),
                 Name = reader.GetString(14),
+                AvatarUrl = reader.GetString(15),
                 Comments = new List<Comment>()
             };
 

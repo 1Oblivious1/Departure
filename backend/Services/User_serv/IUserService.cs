@@ -4,7 +4,7 @@ namespace backend.Services.User_serv
 {
     public interface IUserService
     {
-        void RegisterUser(string name, string mail, string password, DateTime createdAt);
+        User RegisterUser(string name, string mail, string password, DateTime createdAt, string avatarUrl);
         User? LoginUser(string mail, string password);
         UserProfilePrivate? FindPrivateProfileByMail(string mail);
     }

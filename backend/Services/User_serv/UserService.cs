@@ -13,7 +13,7 @@ namespace backend.Services.User_serv
             _userRepository = userRepository;
         }
 
-        public void RegisterUser(string name, string mail, string password, DateTime createdAt)
+        public User RegisterUser(string name, string mail, string password, DateTime createdAt, string avatarUrl)
         {
             var existingProfile = _userRepository.FindPrivateProfileByMail(mail);
             if (existingProfile != null)
@@ -23,7 +23,8 @@ namespace backend.Services.User_serv
             {
                 Name = name,
                 Points = 0,
-                CreatedAt = createdAt
+                CreatedAt = createdAt,
+                AvatarUrl = avatarUrl
             };
             _userRepository.AddPublicProfile(publicProfile);
 
@@ -40,6 +41,7 @@ namespace backend.Services.User_serv
                 IdUserProfilePrivate = privateProfile.IdUserProfilePrivate
             };
             _userRepository.AddUser(user);
+            return user;
         }
 
         public User? LoginUser(string mail, string password)
