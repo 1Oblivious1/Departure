@@ -73,7 +73,7 @@ Content-Type: application/json
 
 {
     "userId": 1,
-    "taskId": 4
+    "taskId": 1
 }
 
 ### Завершение задания
@@ -110,3 +110,15 @@ Content-Type: application/json
 
 ### Лайк поста
 POST {{backend_HostAddress}}/api/post/1/like
+
+### Создание достижения "Первые шаги"
+POST {{backend_HostAddress}}/api/achievement
+Content-Type: application/json
+
+{
+    "name": "Первые шаги",
+    "points": 100
+}
+
+### Получение достижений пользователя
+GET {{backend_HostAddress}}/api/achievement/user/5

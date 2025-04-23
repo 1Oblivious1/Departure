@@ -71,5 +71,15 @@ namespace backend.Services.Task_serv
         {
             return await _taskRepository.GetUserTaskIdsAsync(userId);
         }
+
+        public async Task<Achievement> CreateAchievementAsync(string name, int points)
+        {
+            return await _taskRepository.CreateAchievementAsync(name, points);
+        }
+
+        public async Task<List<Achievement>> GetUserAchievementsAsync(int userId)
+        {
+            return await _taskRepository.GetUserAchievementsAsync(userId);
+        }
     }
 } 

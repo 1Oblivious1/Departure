@@ -162,6 +162,17 @@ namespace backend.Repositories.Task_repo
                 {
                     try
                     {
+                        // Сначала проверяем, является ли это первым выполненным заданием
+                        var isFirstTask = false;
+                        using (var checkCommand = new NpgsqlCommand(
+                            "SELECT COUNT(*) FROM TaskSubmission WHERE idUser = @userId AND status = 'Completed'::tasksubmissionstatus",
+                            connection, transaction))
+                        {
+                            checkCommand.Parameters.AddWithValue("@userId", userId);
+                            var completedTasksCount = (long)await checkCommand.ExecuteScalarAsync();
+                            isFirstTask = completedTasksCount == 0;
+                        }
+
                         // Обновляем статус задания
                         using (var command = new NpgsqlCommand(
                             "UPDATE TaskSubmission SET status = @status::tasksubmissionstatus, ended_at = @endedAt, photo_url = @photoUrl " +
@@ -197,6 +208,46 @@ namespace backend.Repositories.Task_repo
                             {
                                 await transaction.RollbackAsync();
                                 return null;
+                            }
+
+                            // Добавляем 10 очков за выполнение задания
+                            await AddPointsToUserAsync(userId, 10);
+
+                            // Если это первое задание, добавляем достижение и очки
+                            if (isFirstTask)
+                            {
+                                // Получаем ID достижения "Первые шаги"
+                                var achievementQuery = @"
+                                    SELECT idUserAchievement 
+                                    FROM UserAchievement 
+                                    WHERE name = 'Первые шаги'";
+
+                                using var achievementCommand = new NpgsqlCommand(achievementQuery, connection, transaction);
+                                var achievementId = (int)await achievementCommand.ExecuteScalarAsync();
+
+                                // Получаем ID публичного профиля пользователя
+                                var profileQuery = @"
+                                    SELECT idUserProfilePublic 
+                                    FROM ""User"" 
+                                    WHERE idUser = @userId";
+
+                                using var profileCommand = new NpgsqlCommand(profileQuery, connection, transaction);
+                                profileCommand.Parameters.AddWithValue("@userId", userId);
+                                var profileId = (int)await profileCommand.ExecuteScalarAsync();
+
+                                // Добавляем достижение пользователю
+                                var insertQuery = @"
+                                    INSERT INTO UserProfilePublic_has_UserAchievement 
+                                    (idUserProfilePublic, idUserAchievement) 
+                                    VALUES (@profileId, @achievementId)";
+
+                                using var insertCommand = new NpgsqlCommand(insertQuery, connection, transaction);
+                                insertCommand.Parameters.AddWithValue("@profileId", profileId);
+                                insertCommand.Parameters.AddWithValue("@achievementId", achievementId);
+                                await insertCommand.ExecuteNonQueryAsync();
+
+                                // Добавляем 100 очков за первое достижение
+                                await AddPointsToUserAsync(userId, 100);
                             }
 
                             // Создаем запись в новостной ленте
@@ -556,6 +607,160 @@ namespace backend.Repositories.Task_repo
 
             // Получаем обновленный пост
             return await GetNewsFeedPostByIdAsync(connection, newsFeedId);
+        }
+
+        public async Task<bool> CheckAndAddFirstTaskAchievementAsync(int userId)
+        {
+            using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            // Проверяем, есть ли у пользователя уже выполненные задания
+            var query = @"
+                SELECT COUNT(*) 
+                FROM TaskSubmission 
+                WHERE idUser = @userId 
+                AND status = 'Completed'::tasksubmissionstatus";
+
+            using var command = new NpgsqlCommand(query, connection);
+            command.Parameters.AddWithValue("@userId", userId);
+
+            var completedTasksCount = (long)await command.ExecuteScalarAsync();
+
+            // Если это первое выполненное задание
+            if (completedTasksCount == 1)
+            {
+                // Получаем ID достижения "Первые шаги"
+                query = @"
+                    SELECT idUserAchievement 
+                    FROM UserAchievement 
+                    WHERE name = 'Первые шаги'";
+
+                using var achievementCommand = new NpgsqlCommand(query, connection);
+                var achievementId = (int)await achievementCommand.ExecuteScalarAsync();
+
+                // Получаем ID публичного профиля пользователя
+                query = @"
+                    SELECT idUserProfilePublic 
+                    FROM ""User"" 
+                    WHERE idUser = @userId";
+
+                using var profileCommand = new NpgsqlCommand(query, connection);
+                profileCommand.Parameters.AddWithValue("@userId", userId);
+                var profileId = (int)await profileCommand.ExecuteScalarAsync();
+
+                // Проверяем, есть ли уже это достижение у пользователя
+                query = @"
+                    SELECT COUNT(*) 
+                    FROM UserProfilePublic_has_UserAchievement 
+                    WHERE idUserProfilePublic = @profileId 
+                    AND idUserAchievement = @achievementId";
+
+                using var checkCommand = new NpgsqlCommand(query, connection);
+                checkCommand.Parameters.AddWithValue("@profileId", profileId);
+                checkCommand.Parameters.AddWithValue("@achievementId", achievementId);
+                var existingCount = (long)await checkCommand.ExecuteScalarAsync();
+
+                // Если достижение еще не получено
+                if (existingCount == 0)
+                {
+                    // Добавляем достижение пользователю
+                    query = @"
+                        INSERT INTO UserProfilePublic_has_UserAchievement 
+                        (idUserProfilePublic, idUserAchievement) 
+                        VALUES (@profileId, @achievementId)";
+
+                    using var insertCommand = new NpgsqlCommand(query, connection);
+                    insertCommand.Parameters.AddWithValue("@profileId", profileId);
+                    insertCommand.Parameters.AddWithValue("@achievementId", achievementId);
+                    await insertCommand.ExecuteNonQueryAsync();
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public async Task AddPointsToUserAsync(int userId, int points)
+        {
+            using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            var query = @"
+                UPDATE UserProfilePublic upp
+                SET points = points + @points
+                FROM ""User"" u
+                WHERE u.idUser = @userId 
+                AND u.idUserProfilePublic = upp.idUserProfilePublic";
+
+            using var command = new NpgsqlCommand(query, connection);
+            command.Parameters.AddWithValue("@userId", userId);
+            command.Parameters.AddWithValue("@points", points);
+            await command.ExecuteNonQueryAsync();
+        }
+
+        public async Task<Achievement> CreateAchievementAsync(string name, int points)
+        {
+            using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            var query = @"
+                INSERT INTO UserAchievement (name, points)
+                VALUES (@name, @points)
+                RETURNING idUserAchievement, name, points";
+
+            using var command = new NpgsqlCommand(query, connection);
+            command.Parameters.AddWithValue("@name", name);
+            command.Parameters.AddWithValue("@points", points);
+
+            using var reader = await command.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                return new Achievement
+                {
+                    IdUserAchievement = reader.GetInt32(0),
+                    Name = reader.GetString(1),
+                    Points = reader.GetInt32(2)
+                };
+            }
+
+            return null;
+        }
+
+        public async Task<List<Achievement>> GetUserAchievementsAsync(int userId)
+        {
+            using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync();
+
+            var query = @"
+                SELECT 
+                    ua.idUserAchievement,
+                    ua.name,
+                    ua.points
+                FROM UserAchievement ua
+                JOIN UserProfilePublic_has_UserAchievement upha ON ua.idUserAchievement = upha.idUserAchievement
+                JOIN UserProfilePublic upp ON upha.idUserProfilePublic = upp.idUserProfilePublic
+                JOIN ""User"" u ON u.idUserProfilePublic = upp.idUserProfilePublic
+                WHERE u.idUser = @userId
+                ORDER BY ua.idUserAchievement";
+
+            using var command = new NpgsqlCommand(query, connection);
+            command.Parameters.AddWithValue("@userId", userId);
+
+            using var reader = await command.ExecuteReaderAsync();
+            var achievements = new List<Achievement>();
+
+            while (await reader.ReadAsync())
+            {
+                achievements.Add(new Achievement
+                {
+                    IdUserAchievement = reader.GetInt32(0),
+                    Name = reader.GetString(1),
+                    Points = reader.GetInt32(2)
+                });
+            }
+
+            return achievements;
         }
     }
 } 

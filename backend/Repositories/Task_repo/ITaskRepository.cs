@@ -18,5 +18,9 @@ namespace backend.Repositories.Task_repo
         Task<NewsFeedPost> LikePostAsync(int newsFeedId);
         Task<List<(TaskModel Task, TaskSubmission Submission)>> GetUserTasksWithSubmissionsAsync(int userId);
         Task<UserTaskIdsResponse> GetUserTaskIdsAsync(int userId);
+        Task<bool> CheckAndAddFirstTaskAchievementAsync(int userId);
+        Task AddPointsToUserAsync(int userId, int points);
+        Task<Achievement> CreateAchievementAsync(string name, int points);
+        Task<List<Achievement>> GetUserAchievementsAsync(int userId);
     }
 } 

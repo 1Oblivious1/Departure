@@ -18,5 +18,7 @@ namespace backend.Services.Task_serv
         Task<NewsFeedPost> LikePostAsync(int newsFeedId);
         Task<List<(TaskModel Task, TaskSubmission Submission)>> GetUserTasksWithSubmissionsAsync(int userId);
         Task<UserTaskIdsResponse> GetUserTaskIdsAsync(int userId);
+        Task<Achievement> CreateAchievementAsync(string name, int points);
+        Task<List<Achievement>> GetUserAchievementsAsync(int userId);
     }
 } 
