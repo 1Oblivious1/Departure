@@ -110,7 +110,7 @@ GET {{backend_HostAddress}}/api/post/1
     "createdAt": "2024-04-21T...", // Время начала выполнения
     "likes": 5,                 // Количество лайков
     "idTaskSubmission": 1,      // ID выполнения задания
-    "idUser": 1,                // ID пользователя
+    "idUser": 0,                // бесполезное поле, здесь всегда будет возвращаться 0, игнорировать и не использовать
     "photoUrl": "url.jpg",      // URL фотографии
     "idTask": 1,                // ID задания
     "title": "Название",        // Название задания
@@ -125,6 +125,7 @@ GET {{backend_HostAddress}}/api/post/1
             "idComment": 1,     // ID комментария
             "text": "Текст",    // Текст комментария
             "authorName": "Имя", // Имя автора
+            "idUserProfilePublic": 1, // ID публичного профиля автора
             "submittedAt": "2024-04-21T..." // Время отправки
         }
     ]

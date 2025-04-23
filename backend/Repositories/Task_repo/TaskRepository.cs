@@ -364,7 +364,6 @@ namespace backend.Repositories.Task_repo
                     ts.started_at,
                     nf.likes,
                     ts.idTaskSubmission,
-                    ts.idUser,
                     ts.photo_url,
                     t.idTask,
                     t.title,
@@ -394,16 +393,15 @@ namespace backend.Repositories.Task_repo
                     CreatedAt = reader.GetDateTime(2),
                     Likes = reader.GetInt32(3),
                     IdTaskSubmission = reader.GetInt32(4),
-                    IdUser = reader.GetInt32(5),
-                    PhotoUrl = reader.GetString(6),
-                    IdTask = reader.GetInt32(7),
-                    Title = reader.GetString(8),
-                    TaskDescription = reader.GetString(9),
-                    Difficulty = (TaskDifficulty)Enum.Parse(typeof(TaskDifficulty), reader.GetString(10)),
-                    Latitude = reader.GetDouble(11),
-                    Longitude = reader.GetDouble(12),
-                    IdUserProfilePublic = reader.GetInt32(13),
-                    Name = reader.GetString(14),
+                    PhotoUrl = reader.GetString(5),
+                    IdTask = reader.GetInt32(6),
+                    Title = reader.GetString(7),
+                    TaskDescription = reader.GetString(8),
+                    Difficulty = (TaskDifficulty)Enum.Parse(typeof(TaskDifficulty), reader.GetString(9)),
+                    Latitude = reader.GetDouble(10),
+                    Longitude = reader.GetDouble(11),
+                    IdUserProfilePublic = reader.GetInt32(12),
+                    Name = reader.GetString(13),
                     Comments = new List<Comment>()
                 });
             }
@@ -425,7 +423,8 @@ namespace backend.Repositories.Task_repo
                 SELECT 
                     c.idComments, 
                     c.text, 
-                    upp.name, 
+                    upp.name,
+                    upp.idUserProfilePublic,
                     c.submitted_at
                 FROM Comment c
                 JOIN ""User"" u ON c.author = u.idUser
@@ -446,7 +445,8 @@ namespace backend.Repositories.Task_repo
                     IdComment = reader.GetInt32(0),
                     Text = reader.GetString(1),
                     AuthorName = reader.GetString(2),
-                    SubmittedAt = reader.GetDateTime(3)
+                    IdUserProfilePublic = reader.GetInt32(3),
+                    SubmittedAt = reader.GetDateTime(4)
                 });
             }
 

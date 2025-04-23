@@ -29,6 +29,7 @@ namespace backend.Models.Task_models
         public int IdComment { get; set; }
         public string Text { get; set; }
         public string AuthorName { get; set; }
+        public int IdUserProfilePublic { get; set; }
         public DateTime SubmittedAt { get; set; }
     }
 } 
