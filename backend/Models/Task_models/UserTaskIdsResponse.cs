@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace backend.Models.Task_models
 {
     public class UserTaskIdsResponse

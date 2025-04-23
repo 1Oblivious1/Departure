@@ -34,66 +34,79 @@ Content-Type: application/json
   "password": "123456"
 }
 
-### Создание первого задания
+### Создание нового задания 1
 POST {{backend_HostAddress}}/api/task
 Content-Type: application/json
 
 {
-    "title": "Сбор мусора в парке",
-    "description": "Соберите мусор в центральном парке города",
-    "difficulty": 0,
+    "title": "Найти достопримечательность",
+    "description": "Посетить и сфотографировать достопримечательность города",
+    "difficulty": 1,
     "latitude": 55.7558,
     "longitude": 37.6173
 }
 
-### Создание второго задания
+### Создание нового задания 2
 POST {{backend_HostAddress}}/api/task
 Content-Type: application/json
 
 {
-    "title": "Посадка деревьев",
-    "description": "Посадите 5 саженцев деревьев в городском сквере",
-    "difficulty": 1,
-    "latitude": 55.7500,
-    "longitude": 37.6000
+    "title": "Найти лес",
+    "description": "Посетить и сфотографировать лес",
+    "difficulty": 0,
+    "latitude": 54.7558,
+    "longitude": 38.6173
 }
 
-### Создание третьего задания
-POST {{backend_HostAddress}}/api/task
-Content-Type: application/json
-
-{
-    "title": "Очистка реки",
-    "description": "Помогите очистить берег реки от мусора",
-    "difficulty": 2,
-    "latitude": 55.7600,
-    "longitude": 37.6200
-}
-
-### Получение списка всех заданий
+### Получение всех заданий
 GET {{backend_HostAddress}}/api/task
 
-### Начать выполнение задания
+### Получение задания по ID
+GET {{backend_HostAddress}}/api/task/1
+
+### Получение всех отправок заданий пользователя
+GET {{backend_HostAddress}}/api/task/user/1/submissions
+
+### Начало выполнения задания
 POST {{backend_HostAddress}}/api/task/start
 Content-Type: application/json
 
 {
     "userId": 1,
-    "taskId": 1
+    "taskId": 4
 }
 
-### Завершить задание с фото
+### Завершение задания
 POST {{backend_HostAddress}}/api/task/complete
 Content-Type: application/json
 
 {
     "userId": 1,
     "taskId": 1,
-    "photoUrl": "https://static-cse.canva.com/blob/191106/00_verzosa_winterlandscapes_jakob-owens-tb-2640x1485.jpg"
+    "photoUrl": "https://example.com/photo.jpg",
+    "description": "Отличное задание! Удалось посетить все места."
 }
 
-### Получить список заданий пользователя
+### Получение заданий пользователя с информацией о статусе
 GET {{backend_HostAddress}}/api/task/user/1/tasks
 
-### Получить список id заданий, связанных с данным пользователем
+### Получение ID заданий пользователя
 GET {{backend_HostAddress}}/api/task/user/1/task-ids
+
+### Получение ленты новостей
+GET {{backend_HostAddress}}/api/task/news
+
+### Получение конкретного поста
+GET {{backend_HostAddress}}/api/post/1
+
+### Добавление комментария к посту
+POST {{backend_HostAddress}}/api/post/1/comment
+Content-Type: application/json
+
+{
+    "userId": 1,
+    "text": "Отличное фото! Я тоже хочу там побывать."
+}
+
+### Лайк поста
+POST {{backend_HostAddress}}/api/post/1/like

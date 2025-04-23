@@ -37,14 +37,29 @@ namespace backend.Services.Task_serv
             return await _taskRepository.StartTaskAsync(userId, taskId);
         }
 
-        public async Task<TaskSubmission> CompleteTaskAsync(int userId, int taskId, string photoUrl)
+        public async Task<TaskSubmission> CompleteTaskAsync(int userId, int taskId, string photoUrl, string description)
         {
-            return await _taskRepository.CompleteTaskAsync(userId, taskId, photoUrl);
+            return await _taskRepository.CompleteTaskAsync(userId, taskId, photoUrl, description);
         }
 
         public async Task<TaskSubmission> FailTaskAsync(int submissionId)
         {
             return await _taskRepository.FailTaskAsync(submissionId);
+        }
+
+        public async Task<List<NewsFeedPost>> GetNewsFeedAsync()
+        {
+            return await _taskRepository.GetNewsFeedAsync();
+        }
+
+        public async Task<NewsFeedPost> AddCommentAsync(int newsFeedId, int userId, string text)
+        {
+            return await _taskRepository.AddCommentAsync(newsFeedId, userId, text);
+        }
+
+        public async Task<NewsFeedPost> LikePostAsync(int newsFeedId)
+        {
+            return await _taskRepository.LikePostAsync(newsFeedId);
         }
 
         public async Task<List<(TaskModel Task, TaskSubmission Submission)>> GetUserTasksWithSubmissionsAsync(int userId)

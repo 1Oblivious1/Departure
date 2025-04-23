@@ -66,7 +66,7 @@ namespace backend.Controllers
         [HttpPost("complete")]
         public async Task<ActionResult<TaskSubmission>> CompleteTask([FromBody] CompleteTaskRequest request)
         {
-            var submission = await _taskService.CompleteTaskAsync(request.UserId, request.TaskId, request.PhotoUrl);
+            var submission = await _taskService.CompleteTaskAsync(request.UserId, request.TaskId, request.PhotoUrl, request.Description);
             if (submission == null)
             {
                 return NotFound();
@@ -113,6 +113,13 @@ namespace backend.Controllers
             var taskIds = await _taskService.GetUserTaskIdsAsync(userId);
             return Ok(taskIds);
         }
+
+        [HttpGet("news")]
+        public async Task<ActionResult<IEnumerable<NewsFeedPost>>> GetNewsFeed()
+        {
+            var posts = await _taskService.GetNewsFeedAsync();
+            return Ok(posts);
+        }
     }
 
     public class CreateTaskRequest
@@ -135,5 +142,6 @@ namespace backend.Controllers
         public int UserId { get; set; }
         public int TaskId { get; set; }
         public string PhotoUrl { get; set; }
+        public string Description { get; set; }
     }
 } 
