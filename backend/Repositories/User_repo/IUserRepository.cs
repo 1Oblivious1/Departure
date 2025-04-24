@@ -18,5 +18,11 @@ namespace backend.Repositories.User_repo
         int CheckSubscriptionStatus(int subscriberId, int targetUserId);
         (int UserRank, List<UserProfilePublic> Rating) GetUsersRating(int userId);
         (UserProfilePublic Profile, int SubscribersCount, int SubscriptionsCount, int CompletedTasksCount, int TotalLikes, List<NewsFeedPost> Posts) GetUserProfile(int userId);
+        
+        // Методы для работы с избранными постами
+        List<NewsFeedPost> GetFavoritePosts(int userId);
+        void AddToFavorites(int userId, int postId);
+        void RemoveFromFavorites(int userId, int postId);
+        int CheckFavoriteStatus(int userId, int postId);
     }
 }

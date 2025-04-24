@@ -95,5 +95,25 @@ namespace backend.Services.User_serv
         {
             return _userRepository.GetUserProfile(userId);
         }
+
+        public List<NewsFeedPost> GetFavoritePosts(int userId)
+        {
+            return _userRepository.GetFavoritePosts(userId);
+        }
+
+        public void AddToFavorites(int userId, int postId)
+        {
+            _userRepository.AddToFavorites(userId, postId);
+        }
+
+        public void RemoveFromFavorites(int userId, int postId)
+        {
+            _userRepository.RemoveFromFavorites(userId, postId);
+        }
+
+        public int CheckFavoriteStatus(int userId, int postId)
+        {
+            return _userRepository.CheckFavoriteStatus(userId, postId);
+        }
     }
 }

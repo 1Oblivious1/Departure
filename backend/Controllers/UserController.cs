@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System;
 using backend.Services.User_serv;
+using backend.Models.Task_models;
 
 namespace backend.Controllers
 {
@@ -107,10 +108,72 @@ namespace backend.Controllers
             }
         }
 
+        [HttpGet("favorites/{userId}")]
+        public ActionResult<List<NewsFeedPost>> GetFavoritePosts(int userId)
+        {
+            try
+            {
+                var posts = _userService.GetFavoritePosts(userId);
+                return Ok(posts);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpPost("favorites/add")]
+        public IActionResult AddToFavorites([FromBody] FavoritePostRequest request)
+        {
+            try
+            {
+                _userService.AddToFavorites(request.UserId, request.PostId);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpDelete("favorites/delete")]
+        public IActionResult RemoveFromFavorites([FromBody] FavoritePostRequest request)
+        {
+            try
+            {
+                _userService.RemoveFromFavorites(request.UserId, request.PostId);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("favorites/status")]
+        public ActionResult<int> CheckFavoriteStatus([FromBody] FavoritePostRequest request)
+        {
+            try
+            {
+                var status = _userService.CheckFavoriteStatus(request.UserId, request.PostId);
+                return Ok(status);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         public class SubscriptionRequest
         {
             public int SubscriberId { get; set; }
             public int TargetUserId { get; set; }
+        }
+
+        public class FavoritePostRequest
+        {
+            public int UserId { get; set; }
+            public int PostId { get; set; }
         }
     }
 } 

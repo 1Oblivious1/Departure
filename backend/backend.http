@@ -159,3 +159,33 @@ GET {{backend_HostAddress}}/api/user/rating/1
 
 ### Переход в профиль
 GET {{backend_HostAddress}}/api/user/profile/1
+
+### Получение избранных постов пользователя
+GET {{backend_HostAddress}}/api/user/favorites/1
+
+### Добавление поста в избранное
+POST {{backend_HostAddress}}/api/user/favorites/add
+Content-Type: application/json
+
+{
+    "userId": 1,
+    "postId": 1
+}
+
+### Удаление поста из избранного
+DELETE {{backend_HostAddress}}/api/user/favorites/delete
+Content-Type: application/json
+
+{
+    "userId": 1,
+    "postId": 1
+}
+
+### Проверка статуса избранного
+GET {{backend_HostAddress}}/api/user/favorites/status
+Content-Type: application/json
+
+{
+    "userId": 1,
+    "postId": 1
+}

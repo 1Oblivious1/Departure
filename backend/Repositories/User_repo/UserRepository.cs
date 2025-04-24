@@ -534,5 +534,156 @@ namespace backend.Repositories.User_repo
 
             return (profile, subscribersCount, subscriptionsCount, completedTasksCount, totalLikes, posts);
         }
+
+        public List<NewsFeedPost> GetFavoritePosts(int userId)
+        {
+            using var conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+
+            var query = @"
+                SELECT 
+                    nf.idNewsFeed,
+                    nf.description,
+                    ts.started_at,
+                    nf.likes,
+                    ts.idTaskSubmission,
+                    ts.photo_url,
+                    t.idTask,
+                    t.title,
+                    t.description as taskDescription,
+                    t.difficulty,
+                    t.latitude,
+                    t.longitude,
+                    upp.idUserProfilePublic,
+                    upp.name,
+                    upp.avatarUrl
+                FROM FavoritePosts fp
+                JOIN NewsFeed nf ON fp.post_id = nf.idNewsFeed
+                JOIN TaskSubmission ts ON nf.idTaskSubmission = ts.idTaskSubmission
+                JOIN Task t ON ts.idTask = t.idTask
+                JOIN ""User"" u ON ts.idUser = u.idUser
+                JOIN UserProfilePublic upp ON u.idUserProfilePublic = upp.idUserProfilePublic
+                WHERE fp.user_id = @userId
+                ORDER BY fp.saved_at DESC";
+
+            var posts = new List<NewsFeedPost>();
+            using (var cmd = new NpgsqlCommand(query, conn))
+            {
+                cmd.Parameters.AddWithValue("@userId", userId);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    var post = new NewsFeedPost
+                    {
+                        IdNewsFeed = reader.GetInt32(0),
+                        Description = reader.GetString(1),
+                        CreatedAt = reader.GetDateTime(2),
+                        Likes = reader.GetInt32(3),
+                        IdTaskSubmission = reader.GetInt32(4),
+                        PhotoUrl = reader.GetString(5),
+                        IdTask = reader.GetInt32(6),
+                        Title = reader.GetString(7),
+                        TaskDescription = reader.GetString(8),
+                        Difficulty = (TaskDifficulty)Enum.Parse(typeof(TaskDifficulty), reader.GetString(9)),
+                        Latitude = reader.GetDouble(10),
+                        Longitude = reader.GetDouble(11),
+                        IdUserProfilePublic = reader.GetInt32(12),
+                        Name = reader.GetString(13),
+                        AvatarUrl = reader.GetString(14),
+                        Comments = new List<Comment>()
+                    };
+
+                    // Загружаем комментарии для поста
+                    var commentsQuery = @"
+                        SELECT 
+                            c.idComments,
+                            c.text,
+                            c.submitted_at,
+                            upp.idUserProfilePublic,
+                            upp.name,
+                            upp.avatarUrl
+                        FROM Comment c
+                        JOIN ""User"" u ON c.author = u.idUser
+                        JOIN UserProfilePublic upp ON u.idUserProfilePublic = upp.idUserProfilePublic
+                        WHERE c.idNewsFeed = @newsFeedId
+                        ORDER BY c.submitted_at DESC";
+
+                    using (var commentsConn = new NpgsqlConnection(_connectionString))
+                    {
+                        commentsConn.Open();
+                        using (var commentsCmd = new NpgsqlCommand(commentsQuery, commentsConn))
+                        {
+                            commentsCmd.Parameters.AddWithValue("@newsFeedId", post.IdNewsFeed);
+                            using var commentsReader = commentsCmd.ExecuteReader();
+                            while (commentsReader.Read())
+                            {
+                                post.Comments.Add(new Comment
+                                {
+                                    IdComment = commentsReader.GetInt32(0),
+                                    Text = commentsReader.GetString(1),
+                                    SubmittedAt = commentsReader.GetDateTime(2),
+                                    IdUserProfilePublic = commentsReader.GetInt32(3),
+                                    AuthorName = commentsReader.GetString(4),
+                                    AvatarUrl = commentsReader.GetString(5)
+                                });
+                            }
+                        }
+                    }
+
+                    posts.Add(post);
+                }
+            }
+
+            return posts;
+        }
+
+        public void AddToFavorites(int userId, int postId)
+        {
+            using var conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+
+            var query = @"
+                INSERT INTO FavoritePosts (user_id, post_id)
+                VALUES (@userId, @postId)
+                ON CONFLICT (user_id, post_id) DO NOTHING";
+
+            using var cmd = new NpgsqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@userId", userId);
+            cmd.Parameters.AddWithValue("@postId", postId);
+            cmd.ExecuteNonQuery();
+        }
+
+        public void RemoveFromFavorites(int userId, int postId)
+        {
+            using var conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+
+            var query = @"
+                DELETE FROM FavoritePosts
+                WHERE user_id = @userId AND post_id = @postId";
+
+            using var cmd = new NpgsqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@userId", userId);
+            cmd.Parameters.AddWithValue("@postId", postId);
+            cmd.ExecuteNonQuery();
+        }
+
+        public int CheckFavoriteStatus(int userId, int postId)
+        {
+            using var conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+
+            var query = @"
+                SELECT 1 
+                FROM FavoritePosts
+                WHERE user_id = @userId AND post_id = @postId";
+
+            using var cmd = new NpgsqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@userId", userId);
+            cmd.Parameters.AddWithValue("@postId", postId);
+
+            var result = cmd.ExecuteScalar();
+            return result != null ? 1 : 0;
+        }
     }
 }

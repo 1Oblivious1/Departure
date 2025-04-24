@@ -24,6 +24,7 @@ DROP TABLE IF EXISTS UserAchievement CASCADE;
 DROP TABLE IF EXISTS UserProfilePrivate CASCADE;
 DROP TABLE IF EXISTS UserProfilePublic CASCADE;
 DROP TABLE IF EXISTS UserSubscriptions CASCADE;
+DROP TABLE IF EXISTS FavoritePosts CASCADE;
 
 -- Таблица публичного профиля пользователя
 CREATE TABLE UserProfilePublic (
@@ -106,4 +107,12 @@ CREATE TABLE UserSubscriptions (
     target_user_id INT REFERENCES "User"(idUser) ON DELETE CASCADE,
     PRIMARY KEY (subscriber_id, target_user_id),
     CHECK (subscriber_id != target_user_id) -- Запрет подписки на себя
+);
+
+-- Таблица для хранения избранных постов
+CREATE TABLE FavoritePosts (
+    user_id INT NOT NULL REFERENCES "User"(idUser) ON DELETE CASCADE,
+    post_id INT NOT NULL REFERENCES NewsFeed(idNewsFeed) ON DELETE CASCADE,
+    saved_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    PRIMARY KEY (user_id, post_id)
 );
