@@ -302,11 +302,19 @@ namespace backend.Repositories.User_repo
 
             // Получаем место пользователя в рейтинге
             var rankQuery = @"
-                SELECT 
-                    ROW_NUMBER() OVER (ORDER BY upp.points DESC) as rank
-                FROM UserProfilePublic upp
-                JOIN ""User"" u ON u.idUserProfilePublic = upp.idUserProfilePublic
-                WHERE u.idUser = @userId";
+                WITH user_rank AS (
+                    SELECT 
+                        iduserprofilepublic,
+                        ROW_NUMBER() OVER (ORDER BY points DESC) as rank
+                    FROM UserProfilePublic
+                )
+                SELECT rank
+                FROM user_rank
+                WHERE iduserprofilepublic IN (
+                    SELECT iduserprofilepublic 
+                    FROM ""User"" 
+                    WHERE idUser = @userId
+                )";
 
             int userRank = 0;
             using (var rankCmd = new NpgsqlCommand(rankQuery, conn))
@@ -322,12 +330,12 @@ namespace backend.Repositories.User_repo
             // Получаем полный рейтинг
             var ratingQuery = @"
                 SELECT 
-                    upp.idUserProfilePublic,
-                    upp.name,
-                    upp.points,
-                    upp.avatarUrl
-                FROM UserProfilePublic upp
-                ORDER BY upp.points DESC";
+                    iduserprofilepublic,
+                    name,
+                    points,
+                    avatarurl
+                FROM UserProfilePublic
+                ORDER BY points DESC";
 
             var users = new List<UserProfilePublic>();
 
