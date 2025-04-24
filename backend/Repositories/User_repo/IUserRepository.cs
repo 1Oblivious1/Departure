@@ -1,4 +1,6 @@
-﻿using backend.Models.User_models;
+﻿using System.Collections.Generic;
+using backend.Models.User_models;
+using backend.Models.Task_models;
 
 namespace backend.Repositories.User_repo
 {
@@ -14,5 +16,7 @@ namespace backend.Repositories.User_repo
         void UnsubscribeUser(int subscriberId, int targetUserId);
         (List<UserProfilePublic> Subscriptions, List<UserProfilePublic> Subscribers) GetUserSubscriptions(int userId);
         int CheckSubscriptionStatus(int subscriberId, int targetUserId);
+        (int UserRank, List<UserProfilePublic> Rating) GetUsersRating(int userId);
+        (UserProfilePublic Profile, int SubscribersCount, int SubscriptionsCount, int CompletedTasksCount, int TotalLikes, List<NewsFeedPost> Posts) GetUserProfile(int userId);
     }
 }

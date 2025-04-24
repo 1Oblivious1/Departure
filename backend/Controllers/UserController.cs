@@ -71,6 +71,42 @@ namespace backend.Controllers
             }
         }
 
+        [HttpGet("rating/{userId}")]
+        public IActionResult GetUsersRating(int userId)
+        {
+            try
+            {
+                var (userRank, rating) = _userService.GetUsersRating(userId);
+                return Ok(new { UserRank = userRank, Rating = rating });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet("profile/{userId}")]
+        public IActionResult GetUserProfile(int userId)
+        {
+            try
+            {
+                var (profile, subscribersCount, subscriptionsCount, completedTasksCount, totalLikes, posts) = _userService.GetUserProfile(userId);
+                return Ok(new
+                {
+                    Profile = profile,
+                    SubscribersCount = subscribersCount,
+                    SubscriptionsCount = subscriptionsCount,
+                    CompletedTasksCount = completedTasksCount,
+                    TotalLikes = totalLikes,
+                    Posts = posts
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         public class SubscriptionRequest
         {
             public int SubscriberId { get; set; }

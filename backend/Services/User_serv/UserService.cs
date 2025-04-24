@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using backend.Repositories.User_repo;
 using backend.Models.User_models;
+using backend.Models.Task_models;
 
 namespace backend.Services.User_serv
 {
@@ -83,6 +84,16 @@ namespace backend.Services.User_serv
         public int CheckSubscriptionStatus(int subscriberId, int targetUserId)
         {
             return _userRepository.CheckSubscriptionStatus(subscriberId, targetUserId);
+        }
+
+        public (int UserRank, List<UserProfilePublic> Rating) GetUsersRating(int userId)
+        {
+            return _userRepository.GetUsersRating(userId);
+        }
+
+        public (UserProfilePublic Profile, int SubscribersCount, int SubscriptionsCount, int CompletedTasksCount, int TotalLikes, List<NewsFeedPost> Posts) GetUserProfile(int userId)
+        {
+            return _userRepository.GetUserProfile(userId);
         }
     }
 }

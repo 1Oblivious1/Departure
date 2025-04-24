@@ -142,7 +142,7 @@ Content-Type: application/json
     "targetUserId": 2
 }
 
-### Получить подписки пользователя
+### Получить подписки/подписчиков пользователя
 GET {{backend_HostAddress}}/api/user/1/subscriptions
 
 ### Проверить статус подписки
@@ -153,3 +153,9 @@ Content-Type: application/json
     "subscriberId": 1,
     "targetUserId": 2
 }
+
+### Таблица рейтинга пользователей
+GET {{backend_HostAddress}}/api/user/rating/1
+
+### Переход в профиль
+GET {{backend_HostAddress}}/api/user/profile/1
