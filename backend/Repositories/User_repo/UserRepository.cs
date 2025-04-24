@@ -139,5 +139,159 @@ namespace backend.Repositories.User_repo
             }
             return null;
         }
+
+        public void SubscribeUser(int subscriberId, int targetUserId)
+        {
+            using var conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+
+            var query = @"
+                WITH subscriber_profile AS (
+                    SELECT idUserProfilePublic 
+                    FROM ""User"" 
+                    WHERE idUser = @subscriberId
+                ),
+                target_profile AS (
+                    SELECT idUserProfilePublic 
+                    FROM ""User"" 
+                    WHERE idUser = @targetUserId
+                )
+                INSERT INTO UserSubscriptions (subscriber_id, target_user_id)
+                SELECT @subscriberId, target_profile.idUserProfilePublic
+                FROM target_profile
+                WHERE NOT EXISTS (
+                    SELECT 1 
+                    FROM UserSubscriptions 
+                    WHERE subscriber_id = @subscriberId 
+                    AND target_user_id = target_profile.idUserProfilePublic
+                )";
+
+            using var cmd = new NpgsqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@subscriberId", subscriberId);
+            cmd.Parameters.AddWithValue("@targetUserId", targetUserId);
+            cmd.ExecuteNonQuery();
+        }
+
+        public void UnsubscribeUser(int subscriberId, int targetUserId)
+        {
+            using var conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+
+            var query = @"
+                DELETE FROM UserSubscriptions
+                WHERE subscriber_id = @subscriberId
+                AND target_user_id IN (
+                    SELECT idUserProfilePublic 
+                    FROM ""User"" 
+                    WHERE idUser = @targetUserId
+                )";
+
+            using var cmd = new NpgsqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@subscriberId", subscriberId);
+            cmd.Parameters.AddWithValue("@targetUserId", targetUserId);
+            cmd.ExecuteNonQuery();
+        }
+
+        public (List<UserProfilePublic> Subscriptions, List<UserProfilePublic> Subscribers) GetUserSubscriptions(int userId)
+        {
+            using var conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+
+            // Запрос для получения подписок
+            var subscriptionsQuery = @"
+                SELECT upp.idUserProfilePublic, upp.name, upp.points, upp.created_at, upp.avatarUrl
+                FROM UserSubscriptions us
+                JOIN UserProfilePublic upp ON us.target_user_id = upp.idUserProfilePublic
+                WHERE us.subscriber_id = @userId";
+
+            // Запрос для получения подписчиков
+            var subscribersQuery = @"
+                SELECT upp.idUserProfilePublic, upp.name, upp.points, upp.created_at, upp.avatarUrl
+                FROM UserSubscriptions us
+                JOIN ""User"" u ON us.subscriber_id = u.idUser
+                JOIN UserProfilePublic upp ON u.idUserProfilePublic = upp.idUserProfilePublic
+                WHERE us.target_user_id IN (
+                    SELECT idUserProfilePublic 
+                    FROM ""User"" 
+                    WHERE idUser = @userId
+                )";
+
+            var subscriptions = new List<UserProfilePublic>();
+            var subscribers = new List<UserProfilePublic>();
+
+            // Получаем подписки
+            using (var cmd = new NpgsqlCommand(subscriptionsQuery, conn))
+            {
+                cmd.Parameters.AddWithValue("@userId", userId);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    subscriptions.Add(new UserProfilePublic
+                    {
+                        IdUserProfilePublic = reader.GetInt32(0),
+                        Name = reader.GetString(1),
+                        Points = reader.GetInt32(2),
+                        CreatedAt = reader.GetDateTime(3),
+                        AvatarUrl = reader.GetString(4)
+                    });
+                }
+            }
+
+            // Получаем подписчиков
+            using (var cmd = new NpgsqlCommand(subscribersQuery, conn))
+            {
+                cmd.Parameters.AddWithValue("@userId", userId);
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    subscribers.Add(new UserProfilePublic
+                    {
+                        IdUserProfilePublic = reader.GetInt32(0),
+                        Name = reader.GetString(1),
+                        Points = reader.GetInt32(2),
+                        CreatedAt = reader.GetDateTime(3),
+                        AvatarUrl = reader.GetString(4)
+                    });
+                }
+            }
+
+            return (subscriptions, subscribers);
+        }
+
+        public int CheckSubscriptionStatus(int subscriberId, int targetUserId)
+        {
+            // Если это один и тот же пользователь
+            if (subscriberId == targetUserId)
+            {
+                return 0; // Ваш профиль
+            }
+
+            using var conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+
+            var query = @"
+                SELECT 1 
+                FROM UserSubscriptions 
+                WHERE subscriber_id = @subscriberId 
+                AND target_user_id IN (
+                    SELECT idUserProfilePublic 
+                    FROM ""User"" 
+                    WHERE idUser = @targetUserId
+                )";
+
+            using var cmd = new NpgsqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("@subscriberId", subscriberId);
+            cmd.Parameters.AddWithValue("@targetUserId", targetUserId);
+
+            var result = cmd.ExecuteScalar();
+            
+            // Если есть запись о подписке
+            if (result != null)
+            {
+                return 1; // Отписаться
+            }
+            
+            return 2; // Подписаться
+        }
     }
 }

@@ -64,5 +64,25 @@ namespace backend.Services.User_serv
             byte[] bytes = sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(password));
             return Convert.ToBase64String(bytes);
         }
+
+        public void SubscribeUser(int subscriberId, int targetUserId)
+        {
+            _userRepository.SubscribeUser(subscriberId, targetUserId);
+        }
+
+        public void UnsubscribeUser(int subscriberId, int targetUserId)
+        {
+            _userRepository.UnsubscribeUser(subscriberId, targetUserId);
+        }
+
+        public (List<UserProfilePublic> Subscriptions, List<UserProfilePublic> Subscribers) GetUserSubscriptions(int userId)
+        {
+            return _userRepository.GetUserSubscriptions(userId);
+        }
+
+        public int CheckSubscriptionStatus(int subscriberId, int targetUserId)
+        {
+            return _userRepository.CheckSubscriptionStatus(subscriberId, targetUserId);
+        }
     }
 }
