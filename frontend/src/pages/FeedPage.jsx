@@ -12,7 +12,7 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import ImageIcon from '@mui/icons-material/Image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSnackbar } from 'notistack';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { 
   getNewsFeed, 
@@ -99,6 +99,7 @@ export default function FeedPage() {
   const { enqueueSnackbar } = useSnackbar();
   const location = useLocation();
   const navigate = useNavigate();
+  const params = useParams();
   
   const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -107,10 +108,13 @@ export default function FeedPage() {
   const [expandedComments, setExpandedComments] = useState({});
   const [likeLoading, setLikeLoading] = useState({});
   const [favoriteLoading, setFavoriteLoading] = useState({});
-  const [loadingFavorites, setLoadingFavorites] = useState({});
+  const [favorites, setFavorites] = useState({});
   const [recentlyLiked, setRecentlyLiked] = useState(null);
   const [selectedPost, setSelectedPost] = useState(null);
   const [postDetailsOpen, setPostDetailsOpen] = useState(false);
+  
+  // Use a ref to track dialog state for cleanup
+  const [dialogClosing, setDialogClosing] = useState(false);
 
   // Cleanup function to prevent DOM manipulation issues when unmounting
   useEffect(() => {
@@ -128,35 +132,23 @@ export default function FeedPage() {
 
   // Handle URL parameters for opening specific posts
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const postId = params.get('post');
-    const commentsParam = params.get('comments');
+    const urlParams = new URLSearchParams(location.search);
+    const postIdParam = urlParams.get('postId');
     
-    if (postId) {
-      // If feed is loaded, open the post
-      if (feed.length > 0) {
-        const post = feed.find(p => p.idNewsFeed === parseInt(postId) || p.idNewsFeed === postId);
-        if (post) {
-          setSelectedPost(post);
-          setPostDetailsOpen(true);
-          
-          // If comments parameter is set to 'expanded', expand the comments section
-          if (commentsParam === 'expanded') {
-            setExpandedComments(prev => ({
-              ...prev,
-              [postId]: true
-            }));
-          }
-        } else {
-          // If post is not found in feed, fetch it
-          handleViewPostDetails(postId);
-        }
-      } else if (!loading) {
-        // If feed is not loaded but not loading, fetch the post directly
-        handleViewPostDetails(postId);
-      }
+    if (postIdParam) {
+      // Load post details when postId is in URL
+      handleViewPostDetails(postIdParam);
     }
-  }, [feed, location.search, loading]);
+  }, [location.search]);
+
+  // Use a separate useEffect for handling the profile ID param
+  useEffect(() => {
+    if (params.profileId) {
+      // When viewing from a profile, ensure clean state
+      setSelectedPost(null);
+      setPostDetailsOpen(false);
+    }
+  }, [params.profileId]);
 
   const fetchNewsFeed = async () => {
     setLoading(true);
@@ -183,7 +175,7 @@ export default function FeedPage() {
           }
         });
         
-        setFavoriteLoading(prev => ({
+        setFavorites(prev => ({
           ...prev,
           ...newFavorites
         }));
@@ -333,28 +325,49 @@ export default function FeedPage() {
     }
 
     const userId = user.userId;
-
-    // Set loading state for this post
-    setLoadingFavorites(prev => ({ ...prev, [postId]: true }));
     
-    const currentStatus = post.favoriteStatus || 0;
-    const newStatus = currentStatus === 1 ? 0 : 1;
-    
-    // Optimistic update
-    const updatedFeed = [...feed];
-    const postIndex = updatedFeed.findIndex(p => p.idNewsFeed === postId);
-    
-    if (postIndex !== -1) {
-      updatedFeed[postIndex] = {
-        ...updatedFeed[postIndex],
-        favoriteStatus: newStatus
-      };
-      setFeed(updatedFeed);
+    // Prevent multiple clicks
+    if (favoriteLoading[postId]) {
+      return;
     }
     
+    // Set loading state
+    setFavoriteLoading(prev => ({ ...prev, [postId]: true }));
+    
+    // Determine current status and new status
+    const currentStatus = post.favoriteStatus === 1;
+    const newStatus = !currentStatus;
+    
+    // Create a function to update all UI states
+    const updateUIStates = (isFavorite) => {
+      // Update feed items
+      setFeed(prevFeed => prevFeed.map(item => 
+        item.idNewsFeed === postId ? 
+          { ...item, favoriteStatus: isFavorite ? 1 : 0 } : 
+          item
+      ));
+      
+      // Update selected post if open
+      if (selectedPost && selectedPost.idNewsFeed === postId) {
+        setSelectedPost(prev => ({
+          ...prev,
+          favoriteStatus: isFavorite ? 1 : 0
+        }));
+      }
+      
+      // Update favorites state
+      setFavorites(prev => ({
+        ...prev,
+        [postId]: isFavorite
+      }));
+    };
+    
+    // Optimistic UI update
+    updateUIStates(newStatus);
+    
     try {
-      if (newStatus === 1) {
-        console.log(`Adding post ${postId} to favorites for user ${userId}`);
+      if (newStatus) {
+        // Add to favorites
         await addToFavorites(userId, postId);
         enqueueSnackbar('Добавлено в сохраненное', { 
           variant: 'success',
@@ -371,12 +384,12 @@ export default function FeedPage() {
           )
         });
       } else {
-        console.log(`Removing post ${postId} from favorites for user ${userId}`);
+        // Remove from favorites
         await removeFromFavorites(userId, postId);
         enqueueSnackbar('Удалено из сохраненного', { variant: 'success' });
       }
       
-      // Add URL parameter to track this action for when user returns to profile
+      // Track this action for profile navigation
       const url = new URL(window.location);
       url.searchParams.set('favorites', 'updated');
       window.history.replaceState({}, '', url);
@@ -384,46 +397,29 @@ export default function FeedPage() {
     } catch (error) {
       console.error('Error toggling favorite status:', error);
       
-      // Revert the optimistic update
-      if (postIndex !== -1) {
-        updatedFeed[postIndex] = {
-          ...updatedFeed[postIndex],
-          favoriteStatus: currentStatus
-        };
-        setFeed(updatedFeed);
-      }
+      // Revert UI on error
+      updateUIStates(currentStatus);
       
-      enqueueSnackbar(newStatus === 1 
+      enqueueSnackbar(newStatus 
         ? 'Ошибка при добавлении в сохраненное' 
         : 'Ошибка при удалении из сохраненного', 
         { variant: 'error' });
     } finally {
-      // Reset loading state for this post
-      setLoadingFavorites(prev => ({ ...prev, [postId]: false }));
+      // Reset loading state
+      setFavoriteLoading(prev => ({ ...prev, [postId]: false }));
       
-      // Refresh the favorite status from the server to ensure UI is in sync
-      if (user?.userId) {
-        try {
-          const serverStatus = await checkFavoriteStatus(userId, postId);
-          console.log(`Server reports favorite status for post ${postId}: ${serverStatus}`);
-          
-          // Update feed with server status if different from what we expect
-          if (serverStatus !== newStatus) {
-            console.log(`Updating UI with server status: ${serverStatus}`);
-            const refreshedFeed = [...feed];
-            const refreshedPostIndex = refreshedFeed.findIndex(p => p.idNewsFeed === postId);
-            
-            if (refreshedPostIndex !== -1) {
-              refreshedFeed[refreshedPostIndex] = {
-                ...refreshedFeed[refreshedPostIndex],
-                favoriteStatus: serverStatus
-              };
-              setFeed(refreshedFeed);
-            }
-          }
-        } catch (statusError) {
-          console.error('Error checking favorite status after update:', statusError);
+      // Verify state with server
+      try {
+        const serverStatus = await checkFavoriteStatus(userId, postId);
+        const isFavorite = serverStatus === 1;
+        
+        // If server state differs from our expected state, update UI
+        if ((newStatus && !isFavorite) || (!newStatus && isFavorite)) {
+          console.log(`Server status differs from client, updating UI to match server: ${isFavorite}`);
+          updateUIStates(isFavorite);
         }
+      } catch (err) {
+        console.error('Error verifying favorite status:', err);
       }
     }
   };
@@ -431,15 +427,50 @@ export default function FeedPage() {
   const handleViewPostDetails = async (postId) => {
     try {
       setLoading(true);
+      
+      // Mark dialog as not closing
+      setDialogClosing(false);
+      
+      // Fetch post data
       const post = await getPost(postId);
       
       // First close any existing dialog to avoid DOM conflicts
-      setPostDetailsOpen(false);
-      
-      // Use setTimeout to ensure proper sequence of state updates
-      setTimeout(() => {
+      if (postDetailsOpen) {
+        setDialogClosing(true);
+        setPostDetailsOpen(false);
+        
+        // Use setTimeout with slightly longer delay to ensure complete closure
+        setTimeout(() => {
+          setSelectedPost(post);
+          setPostDetailsOpen(true);
+          setDialogClosing(false);
+          
+          // Update URL with post ID
+          if (!location.search.includes(`postId=${postId}`)) {
+            const newUrl = `${location.pathname}?postId=${postId}`;
+            window.history.pushState({ path: newUrl }, '', newUrl);
+          }
+          
+          // Check if comments should be expanded
+          const params = new URLSearchParams(location.search);
+          const commentsParam = params.get('comments');
+          if (commentsParam === 'expanded') {
+            setExpandedComments(prev => ({
+              ...prev,
+              [postId]: true
+            }));
+          }
+        }, 300);
+      } else {
+        // If no dialog is open, open directly
         setSelectedPost(post);
         setPostDetailsOpen(true);
+        
+        // Update URL with post ID
+        if (!location.search.includes(`postId=${postId}`)) {
+          const newUrl = `${location.pathname}?postId=${postId}`;
+          window.history.pushState({ path: newUrl }, '', newUrl);
+        }
         
         // Check if comments should be expanded
         const params = new URLSearchParams(location.search);
@@ -450,7 +481,7 @@ export default function FeedPage() {
             [postId]: true
           }));
         }
-      }, 50);
+      }
     } catch (error) {
       console.error('Error fetching post details:', error);
       // Don't show error messages to user for better UX
@@ -466,14 +497,18 @@ export default function FeedPage() {
       return;
     }
     
-    // Close the post details dialog if it's open
+    // Clear URL parameters when navigating to profile
     if (postDetailsOpen) {
+      // Close dialog and mark as closing to prevent state conflicts
+      setDialogClosing(true);
       setPostDetailsOpen(false);
       
-      // Use setTimeout to ensure dialog is closed before navigation
+      // Use setTimeout to ensure dialog is fully closed before navigation
       setTimeout(() => {
         navigate(`/profile/${userId}`);
-      }, 100);
+        // Reset dialog closing state after navigation
+        setDialogClosing(false);
+      }, 300);
     } else {
       // Navigate immediately if dialog is not open
       navigate(`/profile/${userId}`);
@@ -506,7 +541,13 @@ export default function FeedPage() {
   };
 
   return (
-    <Box sx={{ p: 3, minHeight: '100vh' }}>
+    <Box sx={{ 
+      p: 3, 
+      minHeight: '100vh',
+      maxWidth: '100%',
+      overflowX: 'hidden',
+      boxSizing: 'border-box'
+    }}>
         <Typography variant="h5" fontWeight={700} color="primary" sx={{ mb: 3 }}>
           Лента новостей
         </Typography>
@@ -528,6 +569,11 @@ export default function FeedPage() {
         initial="hidden"
         animate="visible"
         layout
+        style={{ 
+          width: '100%', 
+          maxWidth: '100%', 
+          overflowX: 'hidden' 
+        }}
       >
         <AnimatePresence mode="wait">
         {feed.map(post => (
@@ -545,6 +591,7 @@ export default function FeedPage() {
               mb: 3, 
                   borderRadius: '16px',
               overflow: 'hidden',
+                  maxWidth: '100%',
                   boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
                   transition: 'transform 0.3s ease, box-shadow 0.3s ease',
                   '&:hover': {
@@ -553,7 +600,7 @@ export default function FeedPage() {
                   }
                 }}
               >
-                <CardContent sx={{ pb: 1 }}>
+                <CardContent sx={{ pb: 1, wordBreak: 'break-word' }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
                     <Avatar 
                       src={post.avatarUrl} 
@@ -709,7 +756,7 @@ export default function FeedPage() {
                       e.stopPropagation();
                       handleToggleFavorite(post);
                     }}
-                    disabled={loadingFavorites[post.idNewsFeed]}
+                    disabled={favoriteLoading[post.idNewsFeed]}
                     sx={{
                       color: post.favoriteStatus === 1 ? 'primary.main' : 'text.secondary',
                       transition: 'transform 0.2s ease-in-out',
@@ -719,7 +766,7 @@ export default function FeedPage() {
                       },
                     }}
                   >
-                    {loadingFavorites[post.idNewsFeed] ? (
+                    {favoriteLoading[post.idNewsFeed] ? (
                       <CircularProgress size={20} />
                     ) : post.favoriteStatus === 1 ? (
                       <BookmarkIcon />
@@ -838,31 +885,47 @@ export default function FeedPage() {
                   </Box>
                 </div>
               </Card>
-            </motion.div>
+                </motion.div>
           ))}
-        </AnimatePresence>
+              </AnimatePresence>
       </motion.div>
       )}
 
       {/* Post Details Dialog */}
       <AnimatePresence mode="wait">
-        {postDetailsOpen && selectedPost && (
+        {postDetailsOpen && selectedPost && !dialogClosing && (
           <Dialog
             key={`dialog-${selectedPost.idNewsFeed}`}
             open={postDetailsOpen}
-            onClose={() => setPostDetailsOpen(false)}
+            onClose={() => {
+              setDialogClosing(true);
+              setPostDetailsOpen(false);
+              
+              // Clear URL parameters
+              const newUrl = location.pathname;
+              window.history.pushState({ path: newUrl }, '', newUrl);
+              
+              // Reset after animation completes
+              setTimeout(() => {
+                setDialogClosing(false);
+              }, 300);
+            }}
             maxWidth="md"
             fullWidth
             PaperProps={{
               sx: {
                 borderRadius: '16px',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                maxWidth: '100% !important', 
+                width: { xs: 'calc(100% - 16px)', sm: '600px', md: '900px' },
+                m: { xs: '0 8px', sm: 'auto' }
               }
             }}
             TransitionProps={{
               onExited: () => {
                 // Only clear selectedPost after animation completes
-                if (!postDetailsOpen) {
+                // and if we're not in the process of viewing another post
+                if (!postDetailsOpen && !dialogClosing) {
                   setSelectedPost(null);
                 }
               }
@@ -900,7 +963,7 @@ export default function FeedPage() {
                 </Box>
               </Box>
             </DialogTitle>
-            <DialogContent>
+            <DialogContent sx={{ overflowX: 'hidden', wordBreak: 'break-word' }}>
               <Typography variant="h6" gutterBottom>
                 {selectedPost.title}
               </Typography>
@@ -1040,10 +1103,35 @@ export default function FeedPage() {
                 startIcon={selectedPost.favoriteStatus === 1 ? <BookmarkIcon /> : <BookmarkBorderIcon />}
                 onClick={() => handleToggleFavorite(selectedPost)}
                 color={selectedPost.favoriteStatus === 1 ? "primary" : "inherit"}
+                disabled={favoriteLoading[selectedPost.idNewsFeed]}
               >
-                {selectedPost.favoriteStatus === 1 ? 'В сохраненном' : 'Сохранить'}
+                {favoriteLoading[selectedPost.idNewsFeed] ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <CircularProgress size={16} sx={{ mr: 1 }} />
+                    Обработка...
+                  </Box>
+                ) : (
+                  selectedPost.favoriteStatus === 1 ? 'Удалить из сохраненного' : 'Сохранить'
+                )}
               </Button>
-              <Button onClick={() => setPostDetailsOpen(false)}>Закрыть</Button>
+              <Button 
+                onClick={() => {
+                  // Improved close button handling
+                  setDialogClosing(true);
+                  setPostDetailsOpen(false);
+                  
+                  // Clear URL parameters
+                  const newUrl = location.pathname;
+                  window.history.pushState({ path: newUrl }, '', newUrl);
+                  
+                  // Reset after animation completes
+                  setTimeout(() => {
+                    setDialogClosing(false);
+                  }, 300);
+                }}
+              >
+                Закрыть
+              </Button>
             </DialogActions>
           </Dialog>
         )}

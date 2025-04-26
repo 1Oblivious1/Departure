@@ -22,7 +22,18 @@ export const AuthProvider = ({ children }) => {
                     setLoading(true);
                     try {
                         const userData = await getUserProfile(userId);
-                        setUser(userData);
+                        
+                        // Ensure userData has userId property needed for navigation
+                        const normalizedUserData = {
+                            ...userData,
+                            userId: userId, // Always ensure the userId is available
+                            // Handle both English and Russian API responses 
+                            ...(userData.profile ? { profile: userData.profile } : {}),
+                            ...(userData.профиль ? { профиль: userData.профиль } : {})
+                        };
+                        
+                        console.log('User session restored from localStorage:', normalizedUserData);
+                        setUser(normalizedUserData);
                         setIsAuthenticated(true);
                     } catch (error) {
                         console.error('Error loading user profile:', error);
@@ -42,68 +53,53 @@ export const AuthProvider = ({ children }) => {
         loadUserProfile();
     }, []);
 
-    const login = useCallback(async (email, password) => {
+    const login = async (userData) => {
+        setLoading(true);
         try {
-            setLoading(true);
-            const response = await loginUser({ mail: email, password });
-            
-            localStorage.setItem('token', response.token || 'dummy-token');
-            localStorage.setItem('userId', response.userId || response.id);
-            
-            // Укажем значение userId явно, чтобы его можно было использовать для навигации
-            const userId = response.userId || response.id;
-            
-            setUser({
-                ...response,
-                userId: userId // гарантируем, что userId будет установлен
-            });
-            setIsAuthenticated(true);
-            
-            // Автоматически закрываем диалог и показываем уведомление
-            setAuthDialogOpen(false);
-            
-            return response;
+            const response = await loginUser(userData);
+            if (response && response.token) {
+                localStorage.setItem('token', response.token);
+                const userResponse = await getUserProfile(response.userId || response.id);
+                if (userResponse && userResponse.id) {
+                    setUser(userResponse);
+                    localStorage.setItem('user', JSON.stringify(userResponse));
+                    setLoading(false);
+                    handleAuthSuccess();
+                    return true;
+                }
+            }
+            setLoading(false);
+            return false;
         } catch (error) {
             console.error('Login error:', error);
-            throw error;
-        } finally {
             setLoading(false);
+            throw error;
         }
-    }, []);
+    };
 
-    const register = useCallback(async (name, email, password, avatarUrl = '') => {
+    const register = async (userData) => {
+        setLoading(true);
         try {
-            setLoading(true);
-            const response = await registerUser({ 
-                name, 
-                mail: email, 
-                password, 
-                avatarUrl 
-            });
-            
-            localStorage.setItem('token', response.token || 'dummy-token');
-            localStorage.setItem('userId', response.userId || response.id);
-            
-            // Укажем значение userId явно, чтобы его можно было использовать для навигации
-            const userId = response.userId || response.id;
-            
-            setUser({
-                ...response,
-                userId: userId // гарантируем, что userId будет установлен
-            });
-            setIsAuthenticated(true);
-            
-            // Автоматически закрываем диалог
-            setAuthDialogOpen(false);
-            
-            return response;
+            const response = await registerUser(userData);
+            if (response && response.token) {
+                localStorage.setItem('token', response.token);
+                const userResponse = await getUserProfile(response.userId || response.id);
+                if (userResponse && userResponse.id) {
+                    setUser(userResponse);
+                    localStorage.setItem('user', JSON.stringify(userResponse));
+                    setLoading(false);
+                    handleAuthSuccess();
+                    return true;
+                }
+            }
+            setLoading(false);
+            return false;
         } catch (error) {
             console.error('Registration error:', error);
-            throw error;
-        } finally {
             setLoading(false);
+            throw error;
         }
-    }, []);
+    };
 
     const logout = useCallback(() => {
         try {
@@ -112,33 +108,48 @@ export const AuthProvider = ({ children }) => {
             
             setUser(null);
             setIsAuthenticated(false);
-            
-            enqueueSnackbar('Logged out successfully', { variant: 'success' });
         } catch (error) {
             console.error('Logout error:', error);
-            enqueueSnackbar('Error during logout', { variant: 'error' });
         }
-    }, [enqueueSnackbar]);
+    }, []);
 
-    const showAuthDialog = useCallback(() => {
-        // Use setTimeout to avoid state updates during rendering
-        setTimeout(() => {
-            setAuthDialogOpen(true);
-        }, 0);
+    const showAuthDialog = useCallback((callback) => {
+        console.log("showAuthDialog called");
+        setAuthDialogOpen(true);
+        
+        // Store callback if provided
+        if (typeof callback === 'function') {
+            window._authCallback = callback;
+        }
     }, []);
 
     const closeAuthDialog = useCallback(() => {
-        // Use setTimeout to avoid state updates during rendering
-        setTimeout(() => {
-            setAuthDialogOpen(false);
-        }, 0);
+        setAuthDialogOpen(false);
     }, []);
 
     const handleAuthSuccess = useCallback(() => {
-        // Use setTimeout to avoid state updates during rendering
+        // Close dialog immediately
+        setAuthDialogOpen(false);
+        
+        // If no callback provided, redirect to feed page by default
+        const defaultRedirect = () => {
+            console.log("Default redirect to feed page");
+            window.history.pushState({}, '', '/feed');
+            window.dispatchEvent(new PopStateEvent('popstate'));
+        };
+        
+        // Use the callback passed directly or the one stored earlier
+        const cb = window._authCallback || defaultRedirect;
+        
+        // Execute callback after a short delay to allow state updates
         setTimeout(() => {
-            setAuthDialogOpen(false);
-        }, 0);
+            if (typeof cb === 'function') {
+                cb();
+            }
+        }, 100);
+        
+        // Clear stored callback
+        window._authCallback = null;
     }, []);
 
     const updateUserProfile = useCallback(async (userId, profileData) => {

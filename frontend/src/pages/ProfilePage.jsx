@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { Box, Typography, Avatar, Button, Tab, Tabs, Paper, Grid, 
   Card, CardContent, CardMedia, CardActions, IconButton, Divider, Chip, Badge, LinearProgress, 
   Dialog, DialogTitle, DialogContent, DialogActions, List, ListItem, ListItemAvatar, ListItemText, 
-  ListItemIcon, Menu, MenuItem, Tooltip, Accordion, AccordionSummary, AccordionDetails, CircularProgress } from '@mui/material';
+  ListItemIcon, Menu, MenuItem, Tooltip, Accordion, AccordionSummary, AccordionDetails, CircularProgress, useTheme } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import FavoriteIcon from '@mui/icons-material/Favorite';
@@ -220,6 +220,7 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const { user, showAuthDialog, logout } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
+  const theme = useTheme();
   
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState(null);
@@ -261,7 +262,12 @@ export default function ProfilePage() {
       ? profileData.профиль.idUserProfilePublic.toString() === currentUserId.toString()
       : false;
     
-    return idsMatch || profileIdMatch;
+    // Проверяем совпадения с данными из локального хранилища
+    const storedUserId = localStorage.getItem('userId');
+    const storedIdMatch = storedUserId ? storedUserId.toString() === profileId.toString() : false;
+    
+    // Если у нас уже есть ID из localStorage, используем его как дополнительный признак собственного профиля
+    return idsMatch || profileIdMatch || storedIdMatch;
   }, [currentUserId, profileId, profileData]);
   
   // Diagnostic log to help troubleshoot profile ownership issues
@@ -418,13 +424,23 @@ export default function ProfilePage() {
     } else if (user?.userId) {
       // If no profileId in URL but user is logged in, redirect to their profile
       console.log('No profileId provided, redirecting to user profile');
-      navigate(`/profile/${user.userId}`);
-    } else {
-      // If no profileId and no logged-in user, redirect to homepage
-      console.log('No valid profileId and no user logged in');
-      navigate('/');
+      // Добавляем небольшую задержку, чтобы убедиться, что пользовательские данные загружены
+      setTimeout(() => {
+        navigate(`/profile/${user.userId}`);
+      }, 300);
+    } else if (!user && !loading) {
+      // Если пользователь не авторизован и загрузка завершена - редирект на главную страницу
+      // Но добавляем проверку на наличие данных в localStorage
+      const hasLocalStorageAuth = localStorage.getItem('token') && localStorage.getItem('userId');
+      
+      if (!hasLocalStorageAuth) {
+        console.log('No valid profileId and no user logged in, redirecting to homepage');
+        navigate('/');
+      } else {
+        console.log('Auth data found in localStorage, waiting for user data to load');
+      }
     }
-  }, [profileId, currentUserId, isOwnProfile, location.pathname, user, navigate]);
+  }, [profileId, currentUserId, isOwnProfile, location.pathname, user, navigate, loading]);
 
   // Set initial active tab (important for when navigating from favorites in feed)
   useEffect(() => {
@@ -470,6 +486,27 @@ export default function ProfilePage() {
       // Check both Latin and Cyrillic keys for compatibility
       if (!profileData || !(profileData.profile || profileData.профиль)) {
         console.error('Invalid profile data structure:', profileData);
+        
+        // Возможно проблема в авторизации - проверим наличие ID в localStorage
+        const storedUserId = localStorage.getItem('userId');
+        
+        if (storedUserId && profileId.toString() === storedUserId.toString()) {
+          console.log('User ID matches localStorage but profile data is invalid, attempting to reload');
+          
+          // В данном случае мы, вероятно, пытаемся загрузить собственный профиль, 
+          // но токен авторизации недействителен или истек
+          enqueueSnackbar('Необходимо повторно войти в аккаунт', { variant: 'warning' });
+          
+          // Очищаем данные авторизации
+          localStorage.removeItem('token');
+          localStorage.removeItem('userId');
+          
+          // Задержка перед перенаправлением, чтобы пользователь увидел уведомление
+          setTimeout(() => {
+            navigate('/');
+          }, 1000);
+        }
+        
         // Don't show error to user, just log it
         setProfileData(null);
         setLoading(false);
@@ -589,20 +626,25 @@ export default function ProfilePage() {
     
     try {
       await subscribeToUser(currentUserId, profileId);
+      // Update subscription status immediately to show UI change
       setSubscriptionStatus(1);
       
       // Update subscription counts
       const newData = { ...subscriptionData };
       // Add current user to followers if not already there
       if (!newData.подписчики.find(sub => sub.idUserProfilePublic === currentUserId)) {
-        // We don't have current user data, so we'll just update the count
         enqueueSnackbar('Вы подписались на пользователя', { variant: 'success' });
         
         // Refresh subscription data
         const subscriptions = await getUserSubscriptions(profileId);
-        setSubscriptionData(subscriptions);
+        setSubscriptionData({
+          подписки: subscriptions?.subscriptions || subscriptions?.подписки || [],
+          подписчики: subscriptions?.subscribers || subscriptions?.подписчики || []
+        });
       }
     } catch (error) {
+      // Revert status on error
+      setSubscriptionStatus(2);
       console.error('Error subscribing:', error);
       enqueueSnackbar('Ошибка при подписке', { variant: 'error' });
     }
@@ -613,6 +655,7 @@ export default function ProfilePage() {
     
     try {
       await unsubscribeFromUser(currentUserId, profileId);
+      // Update subscription status immediately to show UI change
       setSubscriptionStatus(2);
       
       // Update subscription counts
@@ -628,8 +671,13 @@ export default function ProfilePage() {
       
       // Refresh subscription data
       const subscriptions = await getUserSubscriptions(profileId);
-      setSubscriptionData(subscriptions);
+      setSubscriptionData({
+        подписки: subscriptions?.subscriptions || subscriptions?.подписки || [],
+        подписчики: subscriptions?.subscribers || subscriptions?.подписчики || []
+      });
     } catch (error) {
+      // Revert status on error
+      setSubscriptionStatus(1);
       console.error('Error unsubscribing:', error);
       enqueueSnackbar('Ошибка при отписке', { variant: 'error' });
     }
@@ -850,30 +898,71 @@ export default function ProfilePage() {
   
   return (
     <Box sx={{ 
-      p: 3, 
-      minHeight: '100vh',
-      overflowX: 'hidden', 
-      maxWidth: '100%',
-      boxSizing: 'border-box'
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      width: '100%',
+      maxWidth: '100vw',
+      overflowX: 'hidden',
+      boxSizing: 'border-box',
+      bgcolor: 'background.default',
+      py: { xs: 2, sm: 3 }
     }}>
       <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        style={{ overflow: 'hidden', width: '100%' }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6 }}
+        style={{ 
+          width: '100%', 
+          maxWidth: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          overflowX: 'hidden',
+          boxSizing: 'border-box'
+        }}
       >
         {/* Фото профиля и информация */}
-        <motion.div variants={itemVariants}>
+        <motion.div variants={itemVariants} style={{ width: '100%' }}>
           <Paper 
             elevation={2}
             sx={{ 
-              p: { xs: 2, sm: 3 }, 
-              mb: 3, 
-              borderRadius: 4, 
+              p: { xs: 2, sm: 3 },
+              borderRadius: 3,
+              width: '100%',
+              maxWidth: '1200px',
+              boxSizing: 'border-box',
               position: 'relative',
               overflow: 'hidden'
             }}
           >
+            {/* Add the Settings Menu back */}
+            <Menu
+              anchorEl={settingsAnchorEl}
+              open={settingsMenuOpen}
+              onClose={handleSettingsClose}
+              MenuListProps={{
+                'aria-labelledby': 'basic-button',
+              }}
+            >
+              <MenuItem onClick={handleOpenFaq}>
+                <HelpIcon fontSize="small" sx={{ mr: 1 }} />
+                Помощь и FAQ
+              </MenuItem>
+              {user && (
+                <>
+                  <MenuItem onClick={handleLogoutClick}>
+                    <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
+                    Выйти
+                  </MenuItem>
+                  <MenuItem onClick={handleOpenDeleteConfirm}>
+                    <DeleteIcon fontSize="small" sx={{ mr: 1 }} color="error" />
+                    <Typography color="error">Удалить аккаунт</Typography>
+                  </MenuItem>
+                </>
+              )}
+            </Menu>
+
             <Box sx={{ 
               height: { xs: 100, sm: 150 }, 
               width: '100%', 
@@ -884,48 +973,51 @@ export default function ProfilePage() {
               background: 'linear-gradient(90deg, #4776E6 0%, #8E54E9 100%)'
             }} />
             
-            {/* Кнопки уведомлений и настроек на фиолетовом фоне */}
+            {/* Utility buttons on the purple background */}
             <Box sx={{ 
-              position: 'absolute', 
-              top: { xs: 8, sm: 16 }, 
-              right: { xs: 8, sm: 16 }, 
+              position: 'absolute',
+              top: 10,
+              right: 10,
               zIndex: 2,
-              display: 'flex',
-              gap: 1
+              display: 'flex', 
+              gap: 1,
+              padding: 1
             }}>
               <Tooltip title="Уведомления">
-                <IconButton 
-                  color="inherit"
-                  sx={{ 
-                    bgcolor: 'rgba(255,255,255,0.2)', 
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' } 
-                  }}
+                      <IconButton 
+                        sx={{ 
+                          color: 'white',
+                    '&:hover': {
+                      bgcolor: 'rgba(255,255,255,0.2)'
+                    }
+                        }}
                   onClick={() => enqueueSnackbar('Функция уведомлений находится в разработке', { variant: 'info' })}
-                >
+                      >
                   <Badge badgeContent={3} color="error">
                     <NotificationsIcon />
                   </Badge>
-                </IconButton>
+                      </IconButton>
               </Tooltip>
               
               <Tooltip title="Настройки">
                 <IconButton 
-                  color="inherit"
-                  sx={{ 
-                    bgcolor: 'rgba(255,255,255,0.2)', 
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.3)' } 
+                      sx={{ 
+                    color: 'white',
+                    '&:hover': {
+                      bgcolor: 'rgba(255,255,255,0.2)'
+                    }
                   }}
                   onClick={handleSettingsClick}
                 >
                   <SettingsIcon />
                 </IconButton>
               </Tooltip>
-            </Box>
-            
-            <Box sx={{ 
-              display: 'flex', 
+              </Box>
+              
+              <Box sx={{ 
+                display: 'flex',
               flexDirection: { xs: 'column', sm: 'row' }, 
-              alignItems: { xs: 'center', sm: 'flex-start' },
+                alignItems: { xs: 'center', sm: 'flex-start' },
               position: 'relative',
               zIndex: 1,
               mt: { xs: 5, sm: 10 }
@@ -947,7 +1039,7 @@ export default function ProfilePage() {
                   }
                 }}
               />
-              <Box sx={{ ml: { xs: 0, sm: 3 }, textAlign: { xs: 'center', sm: 'left' }, flexGrow: 1 }}>
+              <Box sx={{ ml: { xs: 0, sm: 3 }, textAlign: { xs: 'center', sm: 'left' } }}>
                 <Typography variant="h4" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>
                   {profileData?.профиль?.name || 'Loading...'}
                 </Typography>
@@ -959,7 +1051,7 @@ export default function ProfilePage() {
                     color="primary" 
                     variant="outlined"
                     size="small"
-                    sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' }, maxWidth: '100%' }}
+                    sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}
                   />
                   <Chip 
                     icon={<PeopleIcon fontSize="small" />} 
@@ -979,514 +1071,584 @@ export default function ProfilePage() {
                   />
                 </Box>
                 
-                <Box sx={{ 
-                  display: 'flex', 
-                  justifyContent: { xs: 'center', sm: 'flex-start' },
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: 2,
-                  mt: 2
-                }}>
-                  {isOwnProfile || (user?.userId && user.userId.toString() === profileId.toString()) ? (
-                    <Button 
-                      variant="contained" 
-                      color="primary"
+                {isOwnProfile || (user?.userId && user.userId.toString() === profileId.toString()) ? (
+                  <Box sx={{ mt: 2 }}>
+                  <Button 
+                    variant="contained" 
+                    color="primary"
                       startIcon={<EditIcon />}
                       onClick={handleEditProfile}
-                      sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, py: { xs: 0.5, sm: 1 } }}
+                      sx={{ mr: 1, fontSize: { xs: '0.75rem', sm: '0.875rem' }, py: { xs: 0.5, sm: 1 } }}
                       size="small"
-                    >
+                  >
                       Редактировать профиль
-                    </Button>
-                  ) : (
-                    <Button 
+                  </Button>
+                  </Box>
+                ) : (
+                  <Box sx={{ mt: 2 }}>
+                  <Button 
                       variant="contained" 
                       color={subscriptionStatus === 1 ? "error" : "primary"}
                       startIcon={subscriptionStatus === 1 ? <PersonRemoveIcon /> : <PersonAddIcon />}
                       onClick={subscriptionStatus === 1 ? handleUnsubscribe : handleSubscribe}
-                      sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, py: { xs: 0.5, sm: 1 } }}
+                      sx={{ mr: 1, fontSize: { xs: '0.75rem', sm: '0.875rem' }, py: { xs: 0.5, sm: 1 } }}
                       size="small"
                     >
                       {subscriptionStatus === 1 ? 'Отписаться' : 'Подписаться'}
-                    </Button>
-                  )}
-                </Box>
+                  </Button>
+                  </Box>
+                )}
               </Box>
             </Box>
           </Paper>
         </motion.div>
         
         {/* Stats and achievements section */}
-        <motion.div variants={itemVariants}>
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            {/* Achievements */}
-            <Grid item xs={12} md={4}>
-              <Paper elevation={2} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, height: '100%' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                  <Typography variant="h6" fontWeight="bold" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                    <EmojiEventsIcon sx={{ mr: 1, verticalAlign: 'middle', fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
-                    Достижения
-                  </Typography>
-                </Box>
-              
-                {achievements.length > 0 ? (
-                  <Grid container spacing={1}>
-                    {achievements.slice(0, 4).map((achievement, index) => (
-                      <Grid item xs={6} sm={3} key={index}>
-                        <Card 
-                          elevation={0} 
-                          sx={{ 
-                            textAlign: 'center',
-                            bgcolor: 'background.paper',
-                            p: 1,
-                            borderRadius: 2
-                          }}
-                        >
-                          <Avatar 
-                            sx={{ 
-                              width: { xs: 40, sm: 60 }, 
-                              height: { xs: 40, sm: 60 }, 
-                              margin: '0 auto',
-                              bgcolor: 'primary.light' 
+        <motion.div variants={itemVariants} style={{ width: '100%' }}>
+          <Box sx={{ 
+            mt: 4,
+            mb: 4,
+            width: '100%',
+            boxSizing: 'border-box'
+          }}>
+            <Typography variant="h5" fontWeight="bold" sx={{ 
+              mb: 2, 
+              fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <BarChartIcon sx={{ mr: 1 }} /> Статистика и достижения
+            </Typography>
+            
+                <Box sx={{ 
+              display: 'grid', 
+              gridTemplateColumns: { 
+                xs: '1fr', 
+                sm: 'repeat(2, 1fr)', 
+                md: 'repeat(3, 1fr)' 
+              },
+                  gap: 2,
+              width: '100%',
+              boxSizing: 'border-box'
+            }}>
+              {/* Achievements */}
+              <Grid item xs={12} md={4}>
+                <Paper elevation={2} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, height: '100%' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" fontWeight="bold" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                      <EmojiEventsIcon sx={{ mr: 1, verticalAlign: 'middle', fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
+                      Достижения
+                    </Typography>
+                  </Box>
+                  
+                  {achievements.length > 0 ? (
+                    <Grid container spacing={1}>
+                      {achievements.slice(0, 4).map((achievement, index) => (
+                        <Grid item xs={6} sm={3} key={index}>
+                          <Card 
+                            elevation={0} 
+                        sx={{ 
+                          textAlign: 'center',
+                              bgcolor: 'background.paper',
+                              p: 1,
+                              borderRadius: 2
                             }}
                           >
-                            <EmojiEventsIcon sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
-                          </Avatar>
-                          <Typography variant="subtitle2" sx={{ mt: 1, fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>
-                            {achievement.name || 'Достижение'}
-                          </Typography>
-                        </Card>
-                      </Grid>
-                    ))}
-                  </Grid>
-                ) : (
-                  <Typography variant="body2" color="textSecondary" sx={{ textAlign: 'center', py: 2, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                    Нет достижений
-                  </Typography>
-                )}
-              </Paper>
-            </Grid>
-            
-            {/* Stats */}
-            <Grid item xs={12} md={4}>
-              <Paper elevation={2} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, height: '100%' }}>
-                <Typography variant="h6" fontWeight="bold" sx={{ mb: 2, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                  <BarChartIcon sx={{ mr: 1, verticalAlign: 'middle', fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
-                  Статистика
+                            <Avatar 
+                              sx={{ 
+                                width: { xs: 40, sm: 60 }, 
+                                height: { xs: 40, sm: 60 }, 
+                                margin: '0 auto',
+                                bgcolor: 'primary.light' 
+                              }}
+                            >
+                              <EmojiEventsIcon sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
+                            </Avatar>
+                            <Typography variant="subtitle2" sx={{ mt: 1, fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>
+                              {achievement.name || 'Достижение'}
+                        </Typography>
+                          </Card>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  ) : (
+                    <Typography variant="body2" color="textSecondary" sx={{ textAlign: 'center', py: 2, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                      Нет достижений
+                        </Typography>
+                  )}
+                      </Paper>
+              </Grid>
+              
+              {/* Stats */}
+              <Grid item xs={12} md={4}>
+                <Paper elevation={2} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, height: '100%' }}>
+                  <Typography variant="h6" fontWeight="bold" sx={{ mb: 2, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                    <BarChartIcon sx={{ mr: 1, verticalAlign: 'middle', fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
+                    Статистика
                 </Typography>
                 
-                <List>
-                  <ListItem sx={{ px: 0 }}>
-                    <ListItemIcon>
-                      <CheckCircleIcon color="success" sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={<Typography variant="body1" sx={{ fontSize: { xs: '0.8rem', sm: '1rem' } }}>Выполненные задания</Typography>} 
-                      secondary={<Typography variant="body2" sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>{`${profileData?.количество_выполненных_заданий || 0} заданий`}</Typography>} 
-                    />
-                  </ListItem>
-                  <ListItem sx={{ px: 0 }}>
-                    <ListItemIcon>
-                      <FavoriteIcon color="error" sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={<Typography variant="body1" sx={{ fontSize: { xs: '0.8rem', sm: '1rem' } }}>Полученные лайки</Typography>} 
-                      secondary={<Typography variant="body2" sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>{`${profileData?.общее_количество_лайков || 0} лайков`}</Typography>} 
-                    />
-                  </ListItem>
-                  <ListItem sx={{ px: 0 }}>
-                    <ListItemIcon>
-                      <PeopleIcon color="primary" sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={<Typography variant="body1" sx={{ fontSize: { xs: '0.8rem', sm: '1rem' } }}>Подписки</Typography>} 
-                      secondary={<Typography variant="body2" sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>{`${profileData?.количество_подписок || 0} подписок`}</Typography>} 
-                    />
-                  </ListItem>
-                </List>
-              </Paper>
-            </Grid>
-
-            {/* Friends */}
-            <Grid item xs={12} md={4}>
-              <Paper elevation={2} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, height: '100%' }}>
-                <Typography variant="h6" fontWeight="bold" sx={{ mb: 2, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                  <PeopleIcon sx={{ mr: 1, verticalAlign: 'middle', fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
-                  Подписчики
-                </Typography>
-                
-                {subscriptionData?.подписчики?.length > 0 ? (
                   <List>
-                    {subscriptionData.подписчики.slice(0, 3).map((subscriber, index) => (
-                      <ListItem 
-                        key={index} 
-                        sx={{ px: 0 }}
-                        component="div"
-                        onClick={() => handleViewFollowerProfile(subscriber.idUserProfilePublic)}
-                      >
-                        <ListItemAvatar>
-                          <Avatar 
-                            src={subscriber.avatarUrl || noImagePlaceholder} 
-                            alt={subscriber.name}
-                            sx={{ width: { xs: 30, sm: 40 }, height: { xs: 30, sm: 40 } }}
-                          />
-                        </ListItemAvatar>
-                        <ListItemText 
-                          primary={<Typography variant="body1" sx={{ fontSize: { xs: '0.8rem', sm: '1rem' } }}>{subscriber.name}</Typography>} 
-                          secondary={<Typography variant="body2" sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>Подписчик</Typography>} 
-                        />
-                      </ListItem>
-                    ))}
-                    {subscriptionData.подписчики.length > 3 && (
-                      <Box sx={{ mt: 1, textAlign: 'center' }}>
-                        <Button 
-                          size="small" 
-                          color="primary"
-                          onClick={() => setFollowersDialogOpen(true)}
-                          sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
-                        >
-                          Показать всех ({subscriptionData.подписчики.length})
-                        </Button>
-                      </Box>
-                    )}
+                    <ListItem sx={{ px: 0 }}>
+                      <ListItemIcon>
+                        <CheckCircleIcon color="success" sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={<Typography variant="body1" sx={{ fontSize: { xs: '0.8rem', sm: '1rem' } }}>Выполненные задания</Typography>} 
+                        secondary={<Typography variant="body2" sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>{`${profileData?.количество_выполненных_заданий || 0} заданий`}</Typography>} 
+                      />
+                    </ListItem>
+                    <ListItem sx={{ px: 0 }}>
+                      <ListItemIcon>
+                        <FavoriteIcon color="error" sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={<Typography variant="body1" sx={{ fontSize: { xs: '0.8rem', sm: '1rem' } }}>Полученные лайки</Typography>} 
+                        secondary={<Typography variant="body2" sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>{`${profileData?.общее_количество_лайков || 0} лайков`}</Typography>} 
+                      />
+                    </ListItem>
+                    <ListItem sx={{ px: 0 }}>
+                      <ListItemIcon>
+                        <PeopleIcon color="primary" sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={<Typography variant="body1" sx={{ fontSize: { xs: '0.8rem', sm: '1rem' } }}>Подписки</Typography>} 
+                        secondary={<Typography variant="body2" sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>{`${profileData?.количество_подписок || 0} подписок`}</Typography>} 
+                      />
+                    </ListItem>
                   </List>
-                ) : (
-                  <Typography variant="body2" color="textSecondary" sx={{ textAlign: 'center', py: 2, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                    Нет подписчиков
-                  </Typography>
-                )}
-              </Paper>
-            </Grid>
-          </Grid>
+                </Paper>
+              </Grid>
+
+              {/* Friends */}
+              <Grid item xs={12} md={4}>
+                <Paper elevation={2} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, height: '100%' }}>
+                  <Typography variant="h6" fontWeight="bold" sx={{ mb: 2, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                    <PeopleIcon sx={{ mr: 1, verticalAlign: 'middle', fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />
+                    Подписчики
+                        </Typography>
+                  
+                  {subscriptionData?.подписчики?.length > 0 ? (
+                    <List>
+                      {subscriptionData.подписчики.slice(0, 3).map((subscriber, index) => (
+                        <ListItem 
+                          key={index} 
+                          sx={{ px: 0 }}
+                          component="div"
+                          onClick={() => handleViewFollowerProfile(subscriber.idUserProfilePublic)}
+                        >
+                          <ListItemAvatar>
+                            <Avatar 
+                              src={subscriber.avatarUrl || noImagePlaceholder} 
+                              alt={subscriber.name}
+                              sx={{ width: { xs: 30, sm: 40 }, height: { xs: 30, sm: 40 } }}
+                            />
+                          </ListItemAvatar>
+                          <ListItemText 
+                            primary={<Typography variant="body1" sx={{ fontSize: { xs: '0.8rem', sm: '1rem' } }}>{subscriber.name}</Typography>} 
+                            secondary={<Typography variant="body2" sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>Подписчик</Typography>} 
+                          />
+                        </ListItem>
+                      ))}
+                      {subscriptionData.подписчики.length > 3 && (
+                        <Box sx={{ mt: 1, textAlign: 'center' }}>
+                          <Button 
+                            size="small" 
+                            color="primary"
+                            onClick={() => setFollowersDialogOpen(true)}
+                            sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                          >
+                            Показать всех ({subscriptionData.подписчики.length})
+                          </Button>
+                        </Box>
+                      )}
+                    </List>
+                  ) : (
+                    <Typography variant="body2" color="textSecondary" sx={{ textAlign: 'center', py: 2, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                      Нет подписчиков
+                        </Typography>
+                  )}
+                </Paper>
+              </Grid>
+                      </Box>
+                    </Box>
         </motion.div>
         
         {/* Posts section */}
-        <motion.div variants={itemVariants}>
-          <Paper elevation={2} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, mt: 3 }}>
+        <motion.div variants={itemVariants} style={{ width: '100%' }}>
+          <Box sx={{ 
+            mb: 3,
+            width: '100%',
+            boxSizing: 'border-box'
+          }}>
+            <Typography variant="h5" fontWeight="bold" sx={{ 
+              mb: 2, 
+              fontSize: { xs: '1.1rem', sm: '1.25rem', md: '1.5rem' },
+              display: 'flex',
+              alignItems: 'center'
+            }}>
+              <PhotoLibraryIcon sx={{ mr: 1 }} /> Публикации
+            </Typography>
+            
+          <Paper 
+            elevation={2}
+            sx={{ 
+                borderRadius: 3,
+                overflow: 'hidden',
+                width: '100%',
+                boxSizing: 'border-box'
+            }}
+          >
             <Tabs
               value={activeTab}
               onChange={handleTabChange}
-              centered
+                centered
               sx={{
-                mb: 2,
+                borderBottom: 1,
+                borderColor: 'divider',
+                  bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                 '& .MuiTab-root': {
-                  fontSize: { xs: '0.75rem', sm: '0.9rem' },
-                  minWidth: { xs: 100, sm: 150 },
-                  p: { xs: 1, sm: 2 }
-                }
+                    fontSize: { xs: '0.75rem', sm: '0.85rem', md: '0.9rem' },
+                    minWidth: { xs: 0, sm: 120 },
+                    p: { xs: 1.5, sm: 2 },
+                    flex: 1
+                  },
+                  width: '100%'
               }}
             >
               <Tab 
-                label="Публикации" 
-                icon={<PhotoLibraryIcon sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />} 
+                  label="Публикации" 
+                  icon={<PhotoLibraryIcon sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />} 
                 iconPosition="start"
               />
               <Tab 
-                label="Сохраненные" 
-                icon={<BookmarkIcon sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />} 
+                  label="Сохраненные" 
+                  icon={<BookmarkIcon sx={{ fontSize: { xs: '1.2rem', sm: '1.5rem' } }} />} 
                 iconPosition="start"
               />
             </Tabs>
             
             <TabPanel value={activeTab} index={0}>
-              {profileData?.посты && profileData.посты.length > 0 ? (
-                <Grid container spacing={{ xs: 1, sm: 2, md: 3 }} sx={{ width: '100%', m: 0 }}>
-                  {profileData.посты.map((post, index) => (
-                    <Grid item xs={12} sm={6} md={4} key={index}>
+                {profileData?.посты && profileData.посты.length > 0 ? (
+                  <Box sx={{ 
+                    px: { xs: 0, sm: 1 },
+                    width: '100%',
+                    boxSizing: 'border-box' 
+                  }}>
+                    <Grid container spacing={2} sx={{ 
+                      width: '100%', 
+                      mx: 0, 
+                      boxSizing: 'border-box', 
+                      '& .MuiGrid-item': {
+                        paddingTop: '16px',
+                        paddingLeft: '16px'
+                      }
+                    }}>
+                      {profileData.посты.map((post, index) => (
+                        <Grid item xs={12} sm={6} md={4} key={index} sx={{ boxSizing: 'border-box' }}>
                         <Card 
-                        elevation={3} 
+                            elevation={3} 
                           sx={{ 
-                          borderRadius: 3, 
+                              borderRadius: 3, 
                             overflow: 'hidden',
-                          transition: 'transform 0.3s, box-shadow 0.3s',
-                          '&:hover': {
-                            transform: 'translateY(-5px)',
-                            boxShadow: '0 10px 20px rgba(0,0,0,0.12)'
-                          }
-                        }}
-                      >
-                        <Box sx={{ position: 'relative', overflow: 'hidden' }}>
-                              <CardMedia
-                                component="img"
-                            height="180"
-                            image={post.photoUrl || post.imageUrl || noImagePlaceholder}
-                            alt={`Post ${index + 1}`}
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = noImagePlaceholder;
-                            }}
-                            sx={{
-                              transition: 'transform 0.5s ease',
-                              objectFit: 'contain',
-                              bgcolor: 'rgba(0,0,0,0.03)',
+                              transition: 'transform 0.3s, box-shadow 0.3s',
                               '&:hover': {
-                                transform: 'scale(1.05)'
-                              },
-                              height: { xs: 150, sm: 180 }
-                            }}
-                          />
-                            <Box sx={{ 
-                              position: 'absolute', 
-                            top: 10, 
-                            right: 10, 
-                            bgcolor: 'rgba(0,0,0,0.4)', 
-                            color: 'white',
-                            borderRadius: 5,
-                            px: 1,
-                            py: 0.5,
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}>
-                            <FavoriteIcon sx={{ fontSize: { xs: 14, sm: 16 }, mr: 0.5 }} />
-                            <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                              {post.likes || 0}
-                            </Typography>
-                            </Box>
-                          <Box sx={{ 
-                            position: 'absolute', 
-                            top: 10, 
-                            left: 10, 
-                            bgcolor: 'rgba(0,0,0,0.4)', 
-                            color: 'white',
-                            borderRadius: 5,
-                            px: 1,
-                            py: 0.5,
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}>
-                            <ChatIcon sx={{ fontSize: { xs: 14, sm: 16 }, mr: 0.5 }} />
-                            <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                              {typeof post.comments === 'number' ? post.comments : post.comments?.length || 0}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <CardContent sx={{ pb: 1, px: { xs: 1.5, sm: 2 } }}>
-                          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '0.9rem', sm: '1.1rem' } }}>
-                            {post.title || `Публикация ${index + 1}`}
-                            </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ 
-                            wordBreak: 'break-word',
-                            overflowWrap: 'break-word',
-                            mb: 1,
-                            display: '-webkit-box',
-                            WebkitLineClamp: 3,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            height: '4.5em',
-                            fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                          }}>
-                            {post.description || 'Описание публикации...'}
-                            </Typography>
-                        </CardContent>
-                        <CardActions sx={{ justifyContent: 'flex-end', px: { xs: 1.5, sm: 2 }, pt: 0 }}>
-                          <Button 
-                                  size="small"
-                            variant="outlined"
-                            color="primary"
-                            onClick={() => navigate(`/feed?post=${post.idNewsFeed || post.id}`)}
-                                  sx={{ 
-                              borderRadius: 2, 
-                              fontSize: { xs: '0.7rem', sm: '0.875rem' },
-                              py: { xs: 0.5, sm: 1 }
+                                transform: 'translateY(-5px)',
+                                boxShadow: '0 10px 20px rgba(0,0,0,0.12)'
+                              }
                             }}
                           >
-                            Подробнее
-                          </Button>
-                        </CardActions>
-                      </Card>
+                            <Box sx={{ position: 'relative', overflow: 'hidden' }}>
+                              <CardMedia
+                                component="img"
+                                height="180"
+                                image={post.photoUrl || post.imageUrl || noImagePlaceholder}
+                                alt={`Post ${index + 1}`}
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = noImagePlaceholder;
+                                }}
+                                sx={{
+                                  transition: 'transform 0.5s ease',
+                                  objectFit: 'contain',
+                                  bgcolor: 'rgba(0,0,0,0.03)',
+                                  '&:hover': {
+                                    transform: 'scale(1.05)'
+                                  },
+                                  height: { xs: 150, sm: 180 }
+                                }}
+                              />
+                            <Box sx={{ 
+                              position: 'absolute', 
+                                top: 10, 
+                                right: 10, 
+                                bgcolor: 'rgba(0,0,0,0.4)', 
+                                color: 'white',
+                                borderRadius: 5,
+                                px: 1,
+                                py: 0.5,
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}>
+                                <FavoriteIcon sx={{ fontSize: { xs: 14, sm: 16 }, mr: 0.5 }} />
+                                <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
+                                  {post.likes || 0}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ 
+                                position: 'absolute', 
+                                top: 10, 
+                                left: 10, 
+                                bgcolor: 'rgba(0,0,0,0.4)', 
+                                color: 'white',
+                                borderRadius: 5,
+                                px: 1,
+                                py: 0.5,
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}>
+                                <ChatIcon sx={{ fontSize: { xs: 14, sm: 16 }, mr: 0.5 }} />
+                                <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
+                                  {typeof post.comments === 'number' ? post.comments : post.comments?.length || 0}
+                                </Typography>
+                              </Box>
+                            </Box>
+                            <CardContent sx={{ pb: 1, px: { xs: 1.5, sm: 2 } }}>
+                              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '0.9rem', sm: '1.1rem' } }}>
+                                {post.title || `Публикация ${index + 1}`}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" sx={{ 
+                                wordBreak: 'break-word',
+                                overflowWrap: 'break-word',
+                                mb: 1,
+                                display: '-webkit-box',
+                                WebkitLineClamp: 3,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                height: '4.5em',
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                              }}>
+                                {post.description || 'Описание публикации...'}
+                              </Typography>
+                            </CardContent>
+                            <CardActions sx={{ justifyContent: 'flex-end', px: { xs: 1.5, sm: 2 }, pt: 0 }}>
+                              <Button 
+                                  size="small"
+                                variant="outlined"
+                                color="primary"
+                                onClick={() => navigate(`/feed?post=${post.idNewsFeed || post.id}`)}
+                                  sx={{ 
+                                  borderRadius: 2, 
+                                  fontSize: { xs: '0.7rem', sm: '0.875rem' },
+                                  py: { xs: 0.5, sm: 1 }
+                                }}
+                              >
+                                Подробнее
+                              </Button>
+                            </CardActions>
+                          </Card>
+                        </Grid>
+                      ))}
                     </Grid>
-                  ))}
-                </Grid>
-              ) : (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography variant="body1" color="textSecondary" gutterBottom sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
-                    Публикаций пока нет
-                  </Typography>
-                  {isOwnProfile && (
+                            </Box>
+                ) : (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body1" color="textSecondary" gutterBottom sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                      Публикаций пока нет
+                    </Typography>
+                    {isOwnProfile && (
+                      <Button 
+                        variant="contained" 
+                        color="primary"
+                        startIcon={<AddIcon />}
+                        sx={{ mt: 2, borderRadius: 2, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                        size="small"
+                      >
+                        Создать публикацию
+                      </Button>
+                    )}
+                          </Box>
+                )}
+              </TabPanel>
+              
+              <TabPanel value={activeTab} index={1}>
+                {console.log('[ProfilePage] Rendering favorites tab, data:', favorites)}
+                
+                {!isOwnProfile ? (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body1" color="textSecondary" gutterBottom sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                      Сохраненные публикации доступны только владельцу профиля
+                    </Typography>
                     <Button 
-                      variant="contained" 
+                      variant="outlined" 
                       color="primary"
-                      startIcon={<AddIcon />}
+                      startIcon={<ExploreIcon />}
+                      onClick={() => navigate('/feed')}
                       sx={{ mt: 2, borderRadius: 2, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                       size="small"
                     >
-                      Создать публикацию
+                      Перейти в ленту
                     </Button>
-                  )}
-                            </Box>
-              )}
-            </TabPanel>
-            
-            <TabPanel value={activeTab} index={1}>
-              {console.log('[ProfilePage] Rendering favorites tab, data:', favorites)}
-              
-              {!isOwnProfile ? (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography variant="body1" color="textSecondary" gutterBottom sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
-                    Сохраненные публикации доступны только владельцу профиля
-                            </Typography>
-                  <Button 
-                    variant="outlined" 
-                    color="primary"
-                    startIcon={<ExploreIcon />}
-                    onClick={() => navigate('/feed')}
-                    sx={{ mt: 2, borderRadius: 2, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
-                    size="small"
-                  >
-                    Перейти в ленту
-                  </Button>
-                </Box>
-              ) : favorites?.posts && Array.isArray(favorites.posts) && favorites.posts.length > 0 ? (
-                <Grid container spacing={{ xs: 1, sm: 2, md: 3 }}>
-                  {favorites.posts.map((post, index) => {
-                    console.log('[ProfilePage] Rendering favorite post:', post);
-                    return (
-                    <Grid item xs={12} sm={6} md={4} key={index}>
-                      <Card 
-                        elevation={3} 
+                  </Box>
+                ) : favorites?.posts && Array.isArray(favorites.posts) && favorites.posts.length > 0 ? (
+                  <Grid container spacing={2} sx={{ 
+                    width: '100%', 
+                    mx: 0, 
+                    boxSizing: 'border-box',
+                    '& .MuiGrid-item': {
+                      paddingTop: '16px',
+                      paddingLeft: '16px'
+                    }
+                  }}>
+                    {favorites.posts.map((post, index) => {
+                      console.log('[ProfilePage] Rendering favorite post:', post);
+                      return (
+                        <Grid item xs={12} sm={6} md={4} key={index} sx={{ boxSizing: 'border-box' }}>
+                          <Card 
+                            elevation={3} 
                                 sx={{ 
-                          borderRadius: 3, 
-                          overflow: 'hidden',
-                          transition: 'transform 0.3s, box-shadow 0.3s',
-                          '&:hover': {
-                            transform: 'translateY(-5px)',
-                            boxShadow: '0 10px 20px rgba(0,0,0,0.12)'
-                          }
-                        }}
-                      >
-                        <Box sx={{ position: 'relative', overflow: 'hidden' }}>
-                          <CardMedia
-                            component="img"
-                            height="180"
-                            image={post.photoUrl || noImagePlaceholder}
-                            alt={`Favorite ${index + 1}`}
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = noImagePlaceholder;
-                            }}
-                            sx={{
-                              transition: 'transform 0.5s ease',
-                              objectFit: 'contain',
-                              bgcolor: 'rgba(0,0,0,0.03)',
+                              borderRadius: 3, 
+                              overflow: 'hidden',
+                              transition: 'transform 0.3s, box-shadow 0.3s',
                               '&:hover': {
-                                transform: 'scale(1.05)'
-                              },
-                              height: { xs: 150, sm: 180 }
+                                transform: 'translateY(-5px)',
+                                boxShadow: '0 10px 20px rgba(0,0,0,0.12)'
+                              }
                             }}
-                          />
-                          <Box sx={{ 
-                            position: 'absolute', 
-                            top: 10, 
-                            right: 10, 
-                            bgcolor: 'rgba(0,0,0,0.4)', 
-                            color: 'white',
-                            borderRadius: 5,
-                            px: 1,
-                            py: 0.5,
-                            display: 'flex',
-                            alignItems: 'center'
-                          }}>
-                            <FavoriteIcon sx={{ fontSize: { xs: 14, sm: 16 }, mr: 0.5 }} />
-                            <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                              {post.likes || 0}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ 
-                            position: 'absolute', 
-                            top: 10, 
-                            left: 10, 
-                            bgcolor: 'rgba(0,0,0,0.4)', 
-                            color: 'white',
-                            borderRadius: 5,
-                            px: 1,
-                            py: 0.5,
-                            display: 'flex', 
-                            alignItems: 'center'
-                          }}>
-                            <ChatIcon sx={{ fontSize: { xs: 14, sm: 16 }, mr: 0.5 }} />
-                            <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                              {typeof post.comments === 'number' ? post.comments : post.comments?.length || 0}
+                          >
+                            <Box sx={{ position: 'relative', overflow: 'hidden' }}>
+                              <CardMedia
+                                component="img"
+                                height="180"
+                                image={post.photoUrl || noImagePlaceholder}
+                                alt={`Favorite ${index + 1}`}
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = noImagePlaceholder;
+                                }}
+                                sx={{
+                                  transition: 'transform 0.5s ease',
+                                  objectFit: 'contain',
+                                  bgcolor: 'rgba(0,0,0,0.03)',
+                                  '&:hover': {
+                                    transform: 'scale(1.05)'
+                                  },
+                                  height: { xs: 150, sm: 180 }
+                                }}
+                              />
+                              <Box sx={{ 
+                                position: 'absolute', 
+                                top: 10, 
+                                right: 10, 
+                                bgcolor: 'rgba(0,0,0,0.4)', 
+                                color: 'white',
+                                borderRadius: 5,
+                                px: 1,
+                                py: 0.5,
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}>
+                                <FavoriteIcon sx={{ fontSize: { xs: 14, sm: 16 }, mr: 0.5 }} />
+                                <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
+                                  {post.likes || 0}
                               </Typography>
                             </Box>
-                        </Box>
-                        <CardContent sx={{ pb: 1, px: { xs: 1.5, sm: 2 } }}>
-                          <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '0.9rem', sm: '1.1rem' } }}>
-                            {post.title || `Сохраненная публикация ${index + 1}`}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ 
-                            wordBreak: 'break-word',
-                            overflowWrap: 'break-word',
-                            mb: 1,
-                            display: '-webkit-box',
-                            WebkitLineClamp: 3,
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            height: '4.5em',
-                            fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                          }}>
-                            {post.description || 'Описание публикации...'}
-                          </Typography>
-                        </CardContent>
-                        <CardActions sx={{ justifyContent: 'space-between', px: { xs: 1.5, sm: 2 }, pt: 0 }}>
-                          <Button 
-                            size="small" 
-                            startIcon={<BookmarkIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />}
-                            color="error"
-                            variant="outlined"
-                            onClick={() => handleRemoveFavorite(currentUserId, post.idNewsFeed)}
-                            sx={{ 
-                              borderRadius: 2,
-                              fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                              py: { xs: 0.5, sm: 0.75 }
-                            }}
-                          >
-                            Удалить
-                          </Button>
-                          <Button 
+                              <Box sx={{ 
+                                position: 'absolute', 
+                                top: 10, 
+                                left: 10, 
+                                bgcolor: 'rgba(0,0,0,0.4)', 
+                                color: 'white',
+                                borderRadius: 5,
+                                px: 1,
+                                py: 0.5,
+                                display: 'flex', 
+                                alignItems: 'center'
+                              }}>
+                                <ChatIcon sx={{ fontSize: { xs: 14, sm: 16 }, mr: 0.5 }} />
+                                <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
+                                  {typeof post.comments === 'number' ? post.comments : post.comments?.length || 0}
+                                </Typography>
+                              </Box>
+                            </Box>
+                            <CardContent sx={{ pb: 1, px: { xs: 1.5, sm: 2 } }}>
+                              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1, fontSize: { xs: '0.9rem', sm: '1.1rem' } }}>
+                                {post.title || `Сохраненная публикация ${index + 1}`}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" sx={{ 
+                                wordBreak: 'break-word',
+                                overflowWrap: 'break-word',
+                                mb: 1,
+                                display: '-webkit-box',
+                                WebkitLineClamp: 3,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                height: '4.5em',
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                              }}>
+                                {post.description || 'Описание публикации...'}
+                              </Typography>
+                            </CardContent>
+                            <CardActions sx={{ justifyContent: 'space-between', px: { xs: 1.5, sm: 2 }, pt: 0 }}>
+                              <Button 
+                                size="small" 
+                                startIcon={<BookmarkIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />}
+                                color="error"
+                                variant="outlined"
+                                onClick={() => handleRemoveFavorite(currentUserId, post.idNewsFeed)}
+                                sx={{ 
+                                  borderRadius: 2,
+                                  fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                  py: { xs: 0.5, sm: 0.75 }
+                                }}
+                              >
+                                Удалить
+                              </Button>
+                              <Button 
                                 size="small" 
                                 variant="outlined"
-                            color="primary"
-                            onClick={() => navigate(`/feed?post=${post.idNewsFeed || post.id}`)}
-                            sx={{ 
-                              borderRadius: 2,
-                              fontSize: { xs: '0.7rem', sm: '0.75rem' },
-                              py: { xs: 0.5, sm: 0.75 }
-                            }}
-                          >
-                            Подробнее
-                          </Button>
-                        </CardActions>
+                                color="primary"
+                                onClick={() => navigate(`/feed?post=${post.idNewsFeed || post.id}`)}
+                                sx={{ 
+                                  borderRadius: 2,
+                                  fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                                  py: { xs: 0.5, sm: 0.75 }
+                                }}
+                              >
+                                Подробнее
+                              </Button>
+                            </CardActions>
                         </Card>
                     </Grid>
-                    );
-                  })}
+                      );
+                    })}
                 </Grid>
-              ) : (
-                <Box sx={{ textAlign: 'center', py: 4 }}>
-                  <Typography variant="body1" color="textSecondary" gutterBottom sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
-                    Сохраненных публикаций пока нет
+                ) : (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body1" color="textSecondary" gutterBottom sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+                      Сохраненных публикаций пока нет
                 </Typography>
-                  <Button 
-                    variant="outlined" 
-                    color="primary"
-                    startIcon={<ExploreIcon />}
-                    onClick={() => navigate('/feed')}
-                    sx={{ mt: 2, borderRadius: 2, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
-                    size="small"
-                  >
-                    Перейти в ленту
-                  </Button>
-                  {isOwnProfile && (
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 2, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                      Вы можете сохранять понравившиеся публикации, нажав на иконку закладки в ленте
-                    </Typography>
-                  )}
+                    <Button 
+                      variant="outlined" 
+                      color="primary"
+                      startIcon={<ExploreIcon />}
+                      onClick={() => navigate('/feed')}
+                      sx={{ mt: 2, borderRadius: 2, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                      size="small"
+                    >
+                      Перейти в ленту
+                    </Button>
+                    {isOwnProfile && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 2, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        Вы можете сохранять понравившиеся публикации, нажав на иконку закладки в ленте
+                      </Typography>
+                    )}
               </Box>
-              )}
+                )}
             </TabPanel>
           </Paper>
+          </Box>
         </motion.div>
       </motion.div>
 
@@ -1511,7 +1673,7 @@ export default function ProfilePage() {
         </DialogActions>
       </Dialog>
 
-      {/* Delete Account Confirmation Dialog */}
+      {/* Диалог подтверждения удаления аккаунта */}
       <Dialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
@@ -1542,33 +1704,6 @@ export default function ProfilePage() {
         open={showFaqDialog} 
         onClose={() => setShowFaqDialog(false)} 
       />
-
-      {/* Settings Menu */}
-      <Menu
-        anchorEl={settingsAnchorEl}
-        open={settingsMenuOpen}
-        onClose={handleSettingsClose}
-        MenuListProps={{
-          'aria-labelledby': 'basic-button',
-        }}
-      >
-        <MenuItem onClick={handleOpenFaq}>
-          <HelpIcon fontSize="small" sx={{ mr: 1 }} />
-          Помощь и FAQ
-        </MenuItem>
-        {user && (
-          <>
-            <MenuItem onClick={handleLogoutClick}>
-              <LogoutIcon fontSize="small" sx={{ mr: 1 }} />
-              Выйти
-            </MenuItem>
-            <MenuItem onClick={handleOpenDeleteConfirm}>
-              <DeleteIcon fontSize="small" sx={{ mr: 1 }} color="error" />
-              <Typography color="error">Удалить аккаунт</Typography>
-            </MenuItem>
-          </>
-        )}
-      </Menu>
     </Box>
   );
 } 

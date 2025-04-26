@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useCallback, useContext, use
 import PropTypes from 'prop-types';
 import { useAuth } from '../context/AuthContext';
 import { useSnackbar } from 'notistack';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogTitle,
@@ -65,7 +66,7 @@ function AuthDialog() {
   const theme = useTheme();
   const dialogRef = useRef(null);
   const { enqueueSnackbar } = useSnackbar();
-  const { login, register, authDialogOpen, closeAuthDialog, handleAuthSuccess } = useAuth();
+  const { login, register, authDialogOpen, closeAuthDialog, handleAuthSuccess, setAuthDialogOpen } = useAuth();
   const [tabValue, setTabValue] = useState(0);
   const [formData, setFormData] = useState({
     name: '',
@@ -77,6 +78,8 @@ function AuthDialog() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showAvatarInput, setShowAvatarInput] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (authDialogOpen) {
@@ -168,57 +171,62 @@ function AuthDialog() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      return;
+    }
     
-    setLoading(true);
+    setIsSubmitting(true);
     
     try {
-      if (tabValue === 0) {
-        // Login
-        await login(formData.mail, formData.password);
-        enqueueSnackbar('Вход выполнен успешно', { variant: 'success' });
-      } else {
-        // Ensure avatarUrl is populated
-        if (!formData.avatarUrl) {
-          formData.avatarUrl = DEFAULT_AVATAR_URL;
+      if (tabValue === 0) { // Вход
+        const success = await login({
+          mail: formData.email,
+          password: formData.password
+        });
+        
+        if (success) {
+          enqueueSnackbar('Вход выполнен успешно!', { variant: 'success' });
+          navigate('/feed');
+        } else {
+          enqueueSnackbar('Не удалось войти. Проверьте данные и попробуйте снова.', { variant: 'error' });
         }
-        
-        // Trim inputs to prevent length issues
-        const trimmedData = {
-          name: formData.name.trim().substring(0, 50),
-          mail: formData.mail.trim(),
+      } else { // Регистрация
+        const success = await register({
+          name: formData.name,
+          mail: formData.email,
           password: formData.password,
-          avatarUrl: formData.avatarUrl.trim().substring(0, 250)
-        };
+          avatarUrl: avatarPreview || ''
+        });
         
-        // Register
-        await register(trimmedData.name, trimmedData.mail, trimmedData.password, trimmedData.avatarUrl);
-        enqueueSnackbar('Регистрация прошла успешно', { variant: 'success' });
+        if (success) {
+          enqueueSnackbar('Регистрация успешна!', { variant: 'success' });
+          navigate('/feed');
+        } else {
+          enqueueSnackbar('Не удалось зарегистрироваться. Пожалуйста, попробуйте снова.', { variant: 'error' });
+        }
       }
-      
-      // Handle successful auth
-      handleAuthSuccess();
     } catch (error) {
       console.error('Auth error:', error);
-      
-      // Extract more specific error message if available
-      let errorMessage;
-      if (error.response?.data) {
-        errorMessage = typeof error.response.data === 'string' 
-          ? error.response.data 
-          : error.response.data.message || error.response.data.title || error.message;
-      } else {
-        errorMessage = error.message || (tabValue === 0 ? 'Ошибка входа' : 'Ошибка регистрации');
-      }
-      
+      const errorMessage = error.response?.data?.message || 'Произошла ошибка. Пожалуйста, попробуйте позже.';
       enqueueSnackbar(errorMessage, { variant: 'error' });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleClose = () => {
     if (!loading) {
+      // Reset form data
+      setFormData({
+        name: '',
+        mail: '',
+        password: '',
+        avatarUrl: DEFAULT_AVATAR_URL
+      });
+      setErrors({});
+      setShowPassword(false);
+      
+      // Close the dialog
       closeAuthDialog();
     }
   };

@@ -522,7 +522,7 @@ export const checkFavoriteStatus = async (userId, postId) => {
 export const deleteAccount = async () => {
     try {
         const response = await axios.delete(`${API_URL}/api/user/delete`, {
-            headers: { Authorization: `Bearer ${getToken()}` }
+            withCredentials: true
         });
         console.log('Account deletion response:', response.data);
         return response.data;

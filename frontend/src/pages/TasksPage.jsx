@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Typography, Chip, Button, Grid, CircularProgress, Snackbar, Alert, Tab, Tabs, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Input, IconButton } from '@mui/material';
+import { Box, Typography, Chip, Button, Grid, CircularProgress, Snackbar, Alert, Tab, Tabs, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Input, IconButton, InputAdornment } from '@mui/material';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
@@ -54,8 +54,7 @@ const taskCardVariants = {
     }
   },
   hover: { 
-    y: -5, 
-    boxShadow: "0px 10px 30px rgba(0,0,0,0.15)",
+    scale: 1.02,
     transition: {
       type: "spring",
       stiffness: 500,
@@ -314,30 +313,109 @@ const TasksPage = () => {
 
     return (
         <Box sx={{ p: 3, pb: 10, minHeight: '100vh' }}>
-            <Typography variant="h5" fontWeight={700} color="primary" sx={{ mb: 2 }}>
+            <Typography 
+                variant="h5" 
+                fontWeight={700} 
+                color="primary" 
+                sx={{ 
+                    mb: 3,
+                    display: 'inline-block',
+                    position: 'relative',
+                    '&:after': {
+                        content: '""',
+                        position: 'absolute',
+                        width: '40%',
+                        height: '4px',
+                        bottom: '-8px',
+                        left: '0',
+                        backgroundColor: 'primary.main',
+                        borderRadius: '2px'
+                    }
+                }}
+            >
                 Задания
             </Typography>
 
             {loading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', my: 6 }}>
-                    <CircularProgress size={40} thickness={4} />
+                <Box sx={{ 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    my: 8,
+                    gap: 2
+                }}>
+                    <CircularProgress size={50} thickness={4} />
+                    <Typography variant="body1" color="text.secondary">
+                        Загрузка заданий...
+                    </Typography>
                 </Box>
             ) : (
                 <>
-                    <Tabs
-                        value={viewMode}
+                    <Tabs 
+                        value={viewMode} 
                         onChange={(_, newValue) => setViewMode(newValue)}
                         variant="fullWidth"
-                        sx={{ mb: 2 }}
+                        sx={{ 
+                            mb: 4,
+                            borderRadius: 3,
+                            overflow: 'hidden',
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.12)',
+                            '& .MuiTabs-indicator': {
+                                height: 4,
+                                borderRadius: '4px 4px 0 0'
+                            },
+                            '& .MuiTab-root': {
+                                fontSize: '1rem',
+                                fontWeight: 600,
+                                py: 2,
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                    bgcolor: 'action.hover'
+                                }
+                            }
+                        }}
                     >
-                        <Tab label="Все задачи" value="all" />
-                        <Tab label="Мои задачи" value="myTasks" />
+                        <Tab 
+                            label="Все задачи" 
+                            value="all" 
+                            sx={{ 
+                                color: 'text.primary',
+                                '&.Mui-selected': {
+                                    color: 'primary.main'
+                                }
+                            }}
+                        />
+                        <Tab 
+                            label="Мои задачи" 
+                            value="myTasks"
+                            sx={{ 
+                                color: 'text.primary',
+                                '&.Mui-selected': {
+                                    color: 'primary.main'
+                                }
+                            }}
+                        />
                     </Tabs>
 
                     {filteredTasks.length === 0 ? (
-                        <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
-                            <Typography>
+                        <Box sx={{ 
+                            py: 6, 
+                            textAlign: 'center', 
+                            color: 'text.secondary',
+                            bgcolor: 'action.hover',
+                            borderRadius: 4,
+                            boxShadow: 'inset 0 0 15px rgba(0,0,0,0.05)',
+                            border: '1px dashed',
+                            borderColor: 'divider'
+                        }}>
+                            <Typography variant="h6" color="text.secondary" gutterBottom>
                                 {viewMode === 'myTasks' ? 'У вас нет заданий.' : 'Задания не найдены.'}
+                            </Typography>
+                            <Typography variant="body2">
+                                {viewMode === 'myTasks' 
+                                    ? 'Переключитесь на вкладку "Все задачи", чтобы начать выполнение.' 
+                                    : 'Попробуйте зайти позже, когда появятся новые задания.'}
                             </Typography>
                         </Box>
                     ) : (
@@ -345,28 +423,59 @@ const TasksPage = () => {
                             variants={containerVariants}
                             initial="hidden"
                             animate="visible"
+                            style={{ overflow: 'visible' }}
                         >
-                            <Grid container spacing={2}>
+                            <Grid 
+                                container 
+                                spacing={3} 
+                                sx={{ 
+                                    position: 'relative',
+                                    alignItems: 'stretch'
+                                }}
+                            >
                                 {filteredTasks.map(task => {
                                     const taskId = task.idTask || task.taskId;
                                     return (
-                                        <Grid item xs={12} sm={6} md={4} key={taskId}>
+                                        <Grid 
+                                            item 
+                                            xs={12} 
+                                            sm={6} 
+                                            md={4} 
+                                            key={taskId}
+                                            sx={{ display: 'flex' }}
+                                        >
                                             <motion.div
                                                 variants={taskCardVariants}
                                                 whileHover="hover"
+                                                whileTap="tap"
+                                                initial="visible"
+                                                style={{ 
+                                                    height: '100%',
+                                                    transformOrigin: 'center center'
+                                                }}
                                             >
-                                                <Box
-                                                    sx={{
-                                                        borderRadius: 2,
-                                                        p: 2,
-                                                        boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                                                <Box 
+                                                    sx={{ 
+                                                        borderRadius: 4,
+                                                        p: 3,
+                                                        boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
                                                         height: '100%',
                                                         display: 'flex',
                                                         flexDirection: 'column',
-                                                        overflow: 'visible'
+                                                        overflow: 'visible',
+                                                        position: 'relative',
+                                                        bgcolor: (theme) => theme.palette.mode === 'dark' 
+                                                            ? 'rgba(66, 66, 66, 0.95)' 
+                                                            : 'rgba(255, 255, 255, 0.95)',
+                                                        border: '1px solid',
+                                                        borderColor: 'divider',
+                                                        transition: 'all 0.3s ease-in-out',
+                                                        '&:hover': {
+                                                            borderColor: 'primary.main',
+                                                        }
                                                     }}
                                                 >
-                                                    <Typography variant="h6" gutterBottom>
+                                                    <Typography variant="h6" gutterBottom fontWeight="bold" color="primary.main">
                                                         {task.title}
                                                     </Typography>
                                                     <Typography 
@@ -374,22 +483,35 @@ const TasksPage = () => {
                                                         color="text.secondary"
                                                         sx={{ 
                                                             wordBreak: 'break-word',
-                                                            overflowWrap: 'break-word'
+                                                            overflowWrap: 'break-word',
+                                                            mb: 2
                                                         }}
                                                     >
                                                         {task.description}
                                                     </Typography>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                                        <LocationOnIcon fontSize="small" color="action" sx={{ mr: 1 }} />
-                                                        <Typography variant="body2" color="text.secondary">
+                                                    <Box sx={{ 
+                                                        display: 'flex', 
+                                                        alignItems: 'center', 
+                                                        mb: 2,
+                                                        p: 1,
+                                                        borderRadius: 2,
+                                                        bgcolor: 'action.hover'
+                                                    }}>
+                                                        <LocationOnIcon fontSize="small" color="primary" sx={{ mr: 1 }} />
+                                                        <Typography variant="body2" color="text.secondary" fontWeight="medium">
                                                             {`${task.latitude?.toFixed(4) || '?'}, ${task.longitude?.toFixed(4) || '?'}`}
                                                         </Typography>
                                                     </Box>
-                                                    <Chip
-                                                        label={difficultyLabels[task.difficulty]}
-                                                        color={difficultyColors[task.difficulty]}
-                                                        size="small"
-                                                        sx={{ mb: 2, alignSelf: 'flex-start' }}
+                                                    <Chip 
+                                                        size="small" 
+                                                        label={difficultyLabels[task.difficulty] || 'Неизвестно'} 
+                                                        color={difficultyColors[task.difficulty] || 'default'}
+                                                        sx={{
+                                                            fontWeight: 'bold',
+                                                            borderRadius: '12px',
+                                                            alignSelf: 'flex-start',
+                                                            mb: 2
+                                                        }}
                                                     />
                                                     
                                                     {/* Photo preview if available */}
@@ -400,8 +522,9 @@ const TasksPage = () => {
                                                             position: 'relative', 
                                                             height: 150,
                                                             bgcolor: 'action.hover', 
-                                                            borderRadius: 2,
-                                                            overflow: 'hidden'
+                                                            borderRadius: 3,
+                                                            overflow: 'hidden',
+                                                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                                                         }}>
                                                             <img 
                                                                 src={task.photoUrl} 
@@ -410,7 +533,7 @@ const TasksPage = () => {
                                                                     width: '100%', 
                                                                     height: '100%', 
                                                                     objectFit: 'cover',
-                                                                    borderRadius: 8
+                                                                    borderRadius: 12
                                                                 }}
                                                                 onError={(e) => {
                                                                     e.target.onerror = null;
@@ -440,10 +563,28 @@ const TasksPage = () => {
                 onClose={() => setCompleteDialogOpen(false)}
                 maxWidth="sm"
                 fullWidth
+                PaperProps={{
+                    sx: {
+                        borderRadius: 4,
+                        overflow: 'hidden',
+                        boxShadow: '0 16px 32px rgba(0,0,0,0.25)',
+                        bgcolor: theme => theme.palette.mode === 'dark' ? 'grey.900' : 'background.paper'
+                    }
+                }}
             >
-                <DialogTitle>Завершить задание: {selectedTask?.title}</DialogTitle>
-                <DialogContent>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                <DialogTitle sx={{ 
+                    bgcolor: 'primary.dark', 
+                    color: 'primary.contrastText',
+                    py: 2.5,
+                    px: 3,
+                    fontSize: 20,
+                    fontWeight: 'bold',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.15)'
+                }}>
+                    Завершить задание: {selectedTask?.title}
+                </DialogTitle>
+                <DialogContent sx={{ p: 3, pt: 3 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontStyle: 'italic' }}>
                         Для завершения задания, пожалуйста, добавьте URL фотографии и описание выполнения задания.
                     </Typography>
                     <TextField
@@ -455,7 +596,25 @@ const TasksPage = () => {
                         value={photoUrl}
                         onChange={handlePhotoUrlChange}
                         placeholder="https://example.com/photo.jpg"
-                        sx={{ mb: 2 }}
+                        sx={{ 
+                            mb: 3,
+                            '& .MuiOutlinedInput-root': {
+                                borderRadius: 2,
+                                '&:hover fieldset': {
+                                    borderColor: 'primary.main',
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: 'primary.main',
+                                }
+                            }
+                        }}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <PhotoCameraIcon color="primary" />
+                                </InputAdornment>
+                            ),
+                        }}
                     />
                     <TextField
                         label="Описание выполнения"
@@ -467,11 +626,30 @@ const TasksPage = () => {
                         placeholder="Опишите, как вы выполнили задание..."
                         multiline
                         rows={3}
-                        sx={{ mb: 2 }}
+                        sx={{ 
+                            mb: 3,
+                            '& .MuiOutlinedInput-root': {
+                                borderRadius: 2,
+                                '&:hover fieldset': {
+                                    borderColor: 'primary.main',
+                                },
+                                '&.Mui-focused fieldset': {
+                                    borderColor: 'primary.main',
+                                }
+                            }
+                        }}
                     />
                     {photoUrl && (
-                        <Box sx={{ mt: 2, textAlign: 'center', position: 'relative', bgcolor: 'action.hover', borderRadius: 2, p: 1 }}>
-                            <Typography variant="subtitle2" sx={{ mb: 1 }}>Предпросмотр:</Typography>
+                        <Box sx={{ 
+                            mt: 2, 
+                            textAlign: 'center', 
+                            position: 'relative', 
+                            bgcolor: 'action.hover', 
+                            borderRadius: 3, 
+                            p: 2,
+                            boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.1)'
+                        }}>
+                            <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold', color: 'primary.main' }}>Предпросмотр:</Typography>
                             <img 
                                 src={photoUrl} 
                                 alt="Preview" 
@@ -481,15 +659,22 @@ const TasksPage = () => {
                                 }}
                                 style={{ 
                                     maxWidth: '100%', 
-                                    maxHeight: 200,
+                                    maxHeight: 250,
                                     objectFit: 'contain',
-                                    borderRadius: 8
+                                    borderRadius: 8,
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
                                 }}
                             />
                         </Box>
                     )}
                 </DialogContent>
-                <DialogActions>
+                <DialogActions sx={{ 
+                    p: 3, 
+                    pt: 2,
+                    bgcolor: theme => theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                    borderTop: '1px solid',
+                    borderColor: 'divider'
+                }}>
                     <Button 
                         onClick={() => {
                             setCompleteDialogOpen(false);
@@ -497,6 +682,11 @@ const TasksPage = () => {
                             setTaskDescription('');
                         }}
                         disabled={loading}
+                        sx={{
+                            borderRadius: 2,
+                            px: 3,
+                            py: 1
+                        }}
                     >
                         Отмена
                     </Button>
@@ -505,6 +695,15 @@ const TasksPage = () => {
                         variant="contained" 
                         disabled={!photoUrl || !taskDescription || loading}
                         startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
+                        sx={{
+                            borderRadius: 2,
+                            px: 3,
+                            py: 1,
+                            boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                            '&:hover': {
+                                boxShadow: '0 6px 15px rgba(0,0,0,0.2)'
+                            }
+                        }}
                     >
                         {loading ? 'Отправка...' : 'Завершить задание'}
                     </Button>

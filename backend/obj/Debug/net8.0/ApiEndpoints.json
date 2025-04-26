@@ -513,9 +513,14 @@
     "Order": 0,
     "Parameters": [
       {
-        "Name": "request",
-        "Type": "backend.Controllers.UserController\u002BFavoritePostRequest",
-        "IsRequired": true
+        "Name": "userId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "postId",
+        "Type": "System.Int32",
+        "IsRequired": false
       }
     ],
     "ReturnTypes": [

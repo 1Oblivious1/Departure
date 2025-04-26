@@ -180,12 +180,16 @@ export default function MainNavigation() {
   // Handle navigation, directing to user's profile if profile tab is clicked
   const handleNavigation = (path, index) => {
     if (index === 3) {
-      if (user) {
+      if (user && user.userId) {
         // Navigate to current user's profile
         navigate(`/profile/${user.userId}`);
       } else {
-        // Show login dialog if not logged in
-        showAuthDialog(() => navigate(path));
+        // Show login dialog and navigate to profile after login
+        console.log("Opening auth dialog from navigation");
+        showAuthDialog(() => {
+          console.log("Auth dialog callback executed"); 
+          navigate(path);
+        });
       }
     } else {
       navigate(path);

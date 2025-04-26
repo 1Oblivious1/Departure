@@ -14,10 +14,7 @@ import { SnackbarProvider } from 'notistack';
 const getSystemTheme = () => window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 
 const AppContent = () => {
-    const { user, loading, isAuthDialogOpen, setIsAuthDialogOpen, handleAuthSuccess } = useAuth();
-
-    // Memoize handler functions to prevent unnecessary re-renders
-    const handleCloseAuthDialog = useMemo(() => () => setIsAuthDialogOpen(false), [setIsAuthDialogOpen]);
+    const { user, loading, authDialogOpen, closeAuthDialog } = useAuth();
     
     return (
         <Router>
@@ -52,12 +49,8 @@ const AppContent = () => {
             </Routes>
             <MainNavigation />
             
-            {/* Single AuthDialog for the entire app */}
-            <AuthDialog
-                open={isAuthDialogOpen}
-                onClose={handleCloseAuthDialog}
-                onSuccess={handleAuthSuccess}
-            />
+            {/* AuthDialog component will access context values directly */}
+            <AuthDialog />
         </Router>
     );
 };
