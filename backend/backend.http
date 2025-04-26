@@ -110,7 +110,7 @@ Content-Type: application/json
 }
 
 ### Лайк поста
-POST {{backend_HostAddress}}/api/post/11/like
+POST {{backend_HostAddress}}/api/post/1/like
 
 ### Создание достижения "Первые шаги"
 POST {{backend_HostAddress}}/api/achievement
