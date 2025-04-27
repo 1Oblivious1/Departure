@@ -57,17 +57,45 @@ export const AuthProvider = ({ children }) => {
         setLoading(true);
         try {
             const response = await loginUser(userData);
-            if (response && response.token) {
-                localStorage.setItem('token', response.token);
-                const userResponse = await getUserProfile(response.userId || response.id);
-                if (userResponse && userResponse.id) {
-                    setUser(userResponse);
-                    localStorage.setItem('user', JSON.stringify(userResponse));
+            console.log('Login response:', response);
+            
+            // Check if response has userId which is the expected structure from the backend
+            if (response && response.userId) {
+                // Save the userId and a placeholder token if not provided
+                localStorage.setItem('token', response.token || 'temp_token');
+                localStorage.setItem('userId', response.userId);
+                
+                try {
+                    // Get the user profile using the userId from login response
+                    const userResponse = await getUserProfile(response.userId);
+                    
+                    if (userResponse) {
+                        // Ensure userResponse has userId property for navigation
+                        const normalizedUserData = {
+                            ...userResponse,
+                            userId: response.userId,
+                            ...(userResponse.profile ? { profile: userResponse.profile } : {}),
+                            ...(userResponse.профиль ? { профиль: userResponse.профиль } : {})
+                        };
+                        
+                        setUser(normalizedUserData);
+                        localStorage.setItem('user', JSON.stringify(normalizedUserData));
+                        setIsAuthenticated(true);
+                        setLoading(false);
+                        handleAuthSuccess();
+                        return true;
+                    }
+                } catch (profileError) {
+                    console.error('Error fetching user profile after login:', profileError);
+                    // Still return true as login was successful even if profile fetch failed
+                    setIsAuthenticated(true);
                     setLoading(false);
                     handleAuthSuccess();
                     return true;
                 }
             }
+            
+            console.error('Invalid login response structure:', response);
             setLoading(false);
             return false;
         } catch (error) {
@@ -81,17 +109,45 @@ export const AuthProvider = ({ children }) => {
         setLoading(true);
         try {
             const response = await registerUser(userData);
-            if (response && response.token) {
-                localStorage.setItem('token', response.token);
-                const userResponse = await getUserProfile(response.userId || response.id);
-                if (userResponse && userResponse.id) {
-                    setUser(userResponse);
-                    localStorage.setItem('user', JSON.stringify(userResponse));
+            console.log('Registration response:', response);
+            
+            // Check if response has userId which is the expected structure from the backend
+            if (response && response.userId) {
+                // Save the userId and a placeholder token if not provided
+                localStorage.setItem('token', response.token || 'temp_token');
+                localStorage.setItem('userId', response.userId);
+                
+                try {
+                    // Get the user profile using the userId from registration response
+                    const userResponse = await getUserProfile(response.userId);
+                    
+                    if (userResponse) {
+                        // Ensure userResponse has userId property for navigation
+                        const normalizedUserData = {
+                            ...userResponse,
+                            userId: response.userId,
+                            ...(userResponse.profile ? { profile: userResponse.profile } : {}),
+                            ...(userResponse.профиль ? { профиль: userResponse.профиль } : {})
+                        };
+                        
+                        setUser(normalizedUserData);
+                        localStorage.setItem('user', JSON.stringify(normalizedUserData));
+                        setIsAuthenticated(true);
+                        setLoading(false);
+                        handleAuthSuccess();
+                        return true;
+                    }
+                } catch (profileError) {
+                    console.error('Error fetching user profile after registration:', profileError);
+                    // Still return true as registration was successful even if profile fetch failed
+                    setIsAuthenticated(true);
                     setLoading(false);
                     handleAuthSuccess();
                     return true;
                 }
             }
+            
+            console.error('Invalid registration response structure:', response);
             setLoading(false);
             return false;
         } catch (error) {
@@ -103,8 +159,17 @@ export const AuthProvider = ({ children }) => {
 
     const logout = useCallback(() => {
         try {
+            // Clear all user data from localStorage
             localStorage.removeItem('token');
             localStorage.removeItem('userId');
+            localStorage.removeItem('user');
+            
+            // Clear any other potential auth-related items
+            for (const key of Object.keys(localStorage)) {
+                if (key.startsWith('auth_') || key.includes('user') || key.includes('profile')) {
+                    localStorage.removeItem(key);
+                }
+            }
             
             setUser(null);
             setIsAuthenticated(false);

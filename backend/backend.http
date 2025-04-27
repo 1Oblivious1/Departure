@@ -43,7 +43,7 @@ Content-Type: application/json
     "title": "Найти достопримечательность",
     "description": "Посетить и сфотографировать достопримечательность города",
     "difficulty": 1,
-    "latitude": 55.7558,
+    "latitude": 65.7558,
     "longitude": 37.6173
 }
 

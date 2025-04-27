@@ -5,6 +5,7 @@ const API_URL = 'http://localhost:5234'; // Замените на ваш хос�
 // Auth operations
 export const registerUser = async (userData) => {
     try {
+        console.log('Sending registration data:', userData);
         const response = await axios.post(`${API_URL}/api/auth/register`, userData);
         return response.data;
     } catch (error) {
@@ -12,6 +13,11 @@ export const registerUser = async (userData) => {
         
         // Improved error handling to provide more specific error messages
         if (error.response) {
+            // If the response data is a string (direct error message from backend)
+            if (typeof error.response.data === 'string') {
+                throw new Error(error.response.data);
+            }
+            
             // Extract validation errors if available
             if (error.response.data && error.response.data.errors) {
                 const errorMessages = Object.values(error.response.data.errors)
@@ -19,8 +25,9 @@ export const registerUser = async (userData) => {
                     .join(', ');
                 throw new Error(errorMessages);
             }
+            
             // Handle other types of error responses
-            throw new Error(error.response.data.title || 'Ошибка регистрации: неверные данные');
+            throw new Error(error.response.data.title || error.response.data || 'Ошибка регистрации: неверные данные');
         }
         
         throw new Error('Ошибка регистрации. Пожалуйста, попробуйте позже.');

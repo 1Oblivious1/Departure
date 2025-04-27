@@ -180,7 +180,7 @@ function AuthDialog() {
     try {
       if (tabValue === 0) { // Вход
         const success = await login({
-          mail: formData.email,
+          mail: formData.mail,
           password: formData.password
         });
         
@@ -193,9 +193,9 @@ function AuthDialog() {
       } else { // Регистрация
         const success = await register({
           name: formData.name,
-          mail: formData.email,
+          mail: formData.mail,
           password: formData.password,
-          avatarUrl: avatarPreview || ''
+          avatarUrl: formData.avatarUrl || ''
         });
         
         if (success) {
