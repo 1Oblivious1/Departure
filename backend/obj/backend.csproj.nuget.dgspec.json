@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Александр\\Desktop\\Университет\\Программы\\Project\\Departure\\backend\\backend.csproj": {}
+    "C:\\Users\\Home\\Desktop\\Университет\\2 курс\\ТО\\Backup\\DepartureFull\\backend\\backend.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Александр\\Desktop\\Университет\\Программы\\Project\\Departure\\backend\\backend.csproj": {
+    "C:\\Users\\Home\\Desktop\\Университет\\2 курс\\ТО\\Backup\\DepartureFull\\backend\\backend.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Александр\\Desktop\\Университет\\Программы\\Project\\Departure\\backend\\backend.csproj",
+        "projectUniqueName": "C:\\Users\\Home\\Desktop\\Университет\\2 курс\\ТО\\Backup\\DepartureFull\\backend\\backend.csproj",
         "projectName": "backend",
-        "projectPath": "C:\\Users\\Александр\\Desktop\\Университет\\Программы\\Project\\Departure\\backend\\backend.csproj",
-        "packagesPath": "C:\\Users\\Александр\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Александр\\Desktop\\Университет\\Программы\\Project\\Departure\\backend\\obj\\",
+        "projectPath": "C:\\Users\\Home\\Desktop\\Университет\\2 курс\\ТО\\Backup\\DepartureFull\\backend\\backend.csproj",
+        "packagesPath": "C:\\Users\\Home\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Home\\Desktop\\Университет\\2 курс\\ТО\\Backup\\DepartureFull\\backend\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
-          "D:\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
-          "C:\\Users\\Александр\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\Home\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
@@ -54,6 +54,10 @@
               "target": "Package",
               "version": "[2.3.0, )"
             },
+            "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": {
+              "target": "Package",
+              "version": "[1.21.0, )"
+            },
             "Npgsql": {
               "target": "Package",
               "version": "[9.0.3, )"
@@ -82,7 +86,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.203/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.201/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

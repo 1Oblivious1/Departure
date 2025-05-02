@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5234'; // Замените на ваш хост
+const API_URL = 'https://localhost:5001'; // Замените на ваш хост
 
 // Auth operations
 export const registerUser = async (userData) => {
@@ -10,14 +10,14 @@ export const registerUser = async (userData) => {
         return response.data;
     } catch (error) {
         console.error('Ошибка регистрации:', error.response?.data || error.message);
-        
+
         // Improved error handling to provide more specific error messages
         if (error.response) {
             // If the response data is a string (direct error message from backend)
             if (typeof error.response.data === 'string') {
                 throw new Error(error.response.data);
             }
-            
+
             // Extract validation errors if available
             if (error.response.data && error.response.data.errors) {
                 const errorMessages = Object.values(error.response.data.errors)
@@ -25,11 +25,11 @@ export const registerUser = async (userData) => {
                     .join(', ');
                 throw new Error(errorMessages);
             }
-            
+
             // Handle other types of error responses
             throw new Error(error.response.data.title || error.response.data || 'Ошибка регистрации: неверные данные');
         }
-        
+
         throw new Error('Ошибка регистрации. Пожалуйста, попробуйте позже.');
     }
 };
@@ -40,7 +40,7 @@ export const loginUser = async (credentials) => {
         return response.data;
     } catch (error) {
         console.error('Ошибка входа:', error.response?.data || error.message);
-        
+
         // Improved error handling to provide more specific error messages
         if (error.response) {
             // Extract validation errors if available
@@ -53,7 +53,7 @@ export const loginUser = async (credentials) => {
             // Handle other types of error responses
             throw new Error(error.response.data.title || 'Ошибка входа: неверные данные');
         }
-        
+
         throw new Error('Ошибка входа. Пожалуйста, попробуйте позже.');
     }
 };
@@ -80,19 +80,19 @@ export const getUserProfile = async (userId) => {
                 posts: []
             };
         }
-        
+
         // Log the request for debugging
         console.log(`Fetching user profile for ID: ${userId}`);
-        
+
         // Make sure userId is properly formatted
         const formattedUserId = Number(userId) || userId;
-        
+
         const response = await axios.get(`${API_URL}/api/user/profile/${formattedUserId}`);
         console.log('User profile response:', response.data);
         return response.data;
     } catch (error) {
         console.error('Ошибка получения профиля:', error);
-        
+
         // Return a default profile structure instead of throwing an error
         // This helps the UI show something meaningful rather than breaking
         return {
@@ -216,9 +216,9 @@ export const getUserTaskIds = async (userId) => {
 
 export const startTask = async (userId, taskId) => {
     try {
-        const response = await axios.post(`${API_URL}/api/task/start`, { 
-            userId, 
-            taskId 
+        const response = await axios.post(`${API_URL}/api/task/start`, {
+            userId,
+            taskId
         });
         return response.data;
     } catch (error) {
@@ -232,7 +232,7 @@ export const completeTask = async (userId, taskId, photoUrl, description) => {
         // Ensure userId and taskId are properly formatted
         const formattedUserId = Number(userId) || userId;
         const formattedTaskId = Number(taskId) || taskId;
-        
+
         // Log request details for debugging
         console.log('Sending task completion request:', {
             endpoint: `${API_URL}/api/task/complete`,
@@ -243,19 +243,19 @@ export const completeTask = async (userId, taskId, photoUrl, description) => {
                 description
             }
         });
-        
+
         const response = await axios.post(`${API_URL}/api/task/complete`, {
             userId: formattedUserId,
             taskId: formattedTaskId,
             photoUrl,
             description
         });
-        
+
         console.log('Task completion response:', response.data);
         return response.data;
     } catch (error) {
         console.error('Ошибка завершения задачи:', error);
-        
+
         if (error.response) {
             // The request was made and the server responded with a status code
             // that falls out of the range of 2xx
@@ -317,9 +317,9 @@ export const addComment = async (postId, userId, text) => {
     } catch (error) {
         console.error('Ошибка добавления комментария:', error.message);
         // Return a default response instead of throwing an error
-        return { 
-            success: false, 
-            comments: [] 
+        return {
+            success: false,
+            comments: []
         };
     }
 };
@@ -338,21 +338,21 @@ export const likePost = async (postId) => {
 export const getUserFavorites = async (userId) => {
     try {
         console.log(`[API] Fetching favorites for user ${userId}`);
-        
+
         // Валидация ID пользователя
         if (!userId) {
             console.warn('[API] getUserFavorites called with empty userId');
             return { posts: [] };
         }
-        
+
         const formattedUserId = Number(userId) || userId;
-        
+
         console.log(`[API] Making request to: ${API_URL}/api/user/favorites/${formattedUserId}`);
         const response = await axios.get(`${API_URL}/api/user/favorites/${formattedUserId}`);
-        
+
         console.log('[API] Get favorites response status:', response.status);
         console.log('[API] Get favorites response data:', response.data);
-        
+
         // Проверка и нормализация данных
         if (Array.isArray(response.data)) {
             console.log('[API] Response is an array, returning wrapped in posts object');
@@ -366,12 +366,12 @@ export const getUserFavorites = async (userId) => {
                 return { posts: [response.data] };
             }
         }
-        
+
         console.log('[API] Response format unknown, returning empty posts array');
         return { posts: [] };
     } catch (error) {
         console.error('[API] Error getting favorites:', error);
-        
+
         if (error.response) {
             console.error('[API] Server response status:', error.response.status);
             console.error('[API] Server response data:', error.response.data);
@@ -380,7 +380,7 @@ export const getUserFavorites = async (userId) => {
         } else {
             console.error('[API] Error setting up request:', error.message);
         }
-        
+
         // Return empty array instead of throwing
         return { posts: [] };
     }
@@ -389,45 +389,45 @@ export const getUserFavorites = async (userId) => {
 export const addToFavorites = async (userId, postId) => {
     try {
         console.log(`Adding post ${postId} to favorites for user ${userId}`);
-        
+
         // Ensure numeric values for IDs
         const numericUserId = parseInt(userId);
         const numericPostId = parseInt(postId);
-        
+
         if (isNaN(numericUserId) || isNaN(numericPostId)) {
             console.error('Invalid ID format:', { userId, postId });
             throw new Error('Invalid ID format');
         }
-        
+
         const response = await axios.post(`${API_URL}/api/user/favorites/add`, {
             UserId: numericUserId,
             PostId: numericPostId
         });
-        
+
         console.log('Add to favorites response:', response.data);
         return response.data;
     } catch (error) {
         console.error('Error adding to favorites:', error);
-        
+
         if (error.response) {
             console.error('Server response status:', error.response.status);
             console.error('Server response data:', error.response.data);
-            
+
             // Try with different case for parameter names
             if (error.response.status === 415 || error.response.status === 400) {
                 try {
                     console.log('Attempting alternate request format');
-                    
+
                     // Try with a different content type or format
-                    const altResponse = await axios.post(`${API_URL}/api/user/favorites/add`, 
+                    const altResponse = await axios.post(`${API_URL}/api/user/favorites/add`,
                         `UserId=${userId}&PostId=${postId}`,
-                        { 
-                            headers: { 
-                                'Content-Type': 'application/x-www-form-urlencoded' 
-                            } 
+                        {
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            }
                         }
                     );
-                    
+
                     console.log('Alternate add to favorites response:', altResponse.data);
                     return altResponse.data;
                 } catch (altError) {
@@ -438,7 +438,7 @@ export const addToFavorites = async (userId, postId) => {
                 }
             }
         }
-        
+
         throw new Error('Не удалось добавить в избранное. Пожалуйста, попробуйте позже.');
     }
 };
@@ -446,42 +446,42 @@ export const addToFavorites = async (userId, postId) => {
 export const removeFromFavorites = async (userId, postId) => {
     try {
         console.log(`Removing post ${postId} from favorites for user ${userId}`);
-        
+
         // Ensure numeric values for IDs
         const numericUserId = parseInt(userId);
         const numericPostId = parseInt(postId);
-        
+
         if (isNaN(numericUserId) || isNaN(numericPostId)) {
             console.error('Invalid ID format:', { userId, postId });
             throw new Error('Invalid ID format');
         }
-        
+
         const response = await axios.delete(`${API_URL}/api/user/favorites/delete`, {
             data: {
                 UserId: numericUserId,
                 PostId: numericPostId
             }
         });
-        
+
         console.log('Remove from favorites response:', response.data);
         return response.data;
     } catch (error) {
         console.error('Error removing from favorites:', error);
-        
+
         if (error.response) {
             console.error('Server response status:', error.response.status);
             console.error('Server response data:', error.response.data);
-            
+
             // Try with different case for parameter names
             if (error.response.status === 415 || error.response.status === 400) {
                 try {
                     console.log('Attempting alternate request format');
-                    
+
                     // Try as a query parameter request
                     const altResponse = await axios.delete(
                         `${API_URL}/api/user/favorites/delete?UserId=${userId}&PostId=${postId}`
                     );
-                    
+
                     console.log('Alternate remove from favorites response:', altResponse.data);
                     return altResponse.data;
                 } catch (altError) {
@@ -492,7 +492,7 @@ export const removeFromFavorites = async (userId, postId) => {
                 }
             }
         }
-        
+
         throw new Error('Не удалось удалить из избранного. Пожалуйста, попробуйте позже.');
     }
 };
@@ -508,7 +508,7 @@ export const checkFavoriteStatus = async (userId, postId) => {
         return response.data;
     } catch (error) {
         console.error('Error checking favorite status:', error);
-        
+
         // Try alternate methods if the first one fails
         try {
             console.log('Attempting alternate method with different endpoint');
@@ -535,12 +535,12 @@ export const deleteAccount = async () => {
         return response.data;
     } catch (error) {
         console.error('Error deleting account:', error);
-        
+
         if (error.response) {
             console.error('Server response status:', error.response.status);
             console.error('Server response data:', error.response.data);
         }
-        
+
         throw new Error('Не удалось удалить аккаунт. Пожалуйста, попробуйте позже.');
     }
 };

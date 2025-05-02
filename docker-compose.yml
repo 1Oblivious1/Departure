@@ -1,0 +1,37 @@
+version: '3.4'
+
+services:
+  backend:
+    image: backend
+    container_name: backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:latest
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: MAIN_Database
+    volumes:
+      - ./.containers/main_db:/var/lib/postgresql/data
+      - ./backend/Database:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+  
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "80:3000"
+    depends_on:
+      - backend
