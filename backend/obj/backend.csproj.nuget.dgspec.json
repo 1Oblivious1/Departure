@@ -1,6 +1,7 @@
 {
   "format": 1,
   "restore": {
+<<<<<<< HEAD
     "C:\\Users\\Alexey\\source\\repos\\Departure\\backend\\backend.csproj": {}
   },
   "projects": {
@@ -12,12 +13,29 @@
         "projectPath": "C:\\Users\\Alexey\\source\\repos\\Departure\\backend\\backend.csproj",
         "packagesPath": "C:\\Users\\Alexey\\.nuget\\packages\\",
         "outputPath": "C:\\Users\\Alexey\\source\\repos\\Departure\\backend\\obj\\",
+=======
+    "C:\\Users\\Александр\\Desktop\\Университет\\Программы\\Project\\Departure\\backend\\backend.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\Александр\\Desktop\\Университет\\Программы\\Project\\Departure\\backend\\backend.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Александр\\Desktop\\Университет\\Программы\\Project\\Departure\\backend\\backend.csproj",
+        "projectName": "backend",
+        "projectPath": "C:\\Users\\Александр\\Desktop\\Университет\\Программы\\Project\\Departure\\backend\\backend.csproj",
+        "packagesPath": "C:\\Users\\Александр\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Александр\\Desktop\\Университет\\Программы\\Project\\Departure\\backend\\obj\\",
+>>>>>>> c8fd6f09051ce5f6d2893759925749a500b4eec8
         "projectStyle": "PackageReference",
         "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+          "D:\\Microsoft Visual Studio\\Shared\\NuGetPackages"
         ],
         "configFilePaths": [
+<<<<<<< HEAD
           "C:\\Users\\Alexey\\AppData\\Roaming\\NuGet\\NuGet.Config",
+=======
+          "C:\\Users\\Александр\\AppData\\Roaming\\NuGet\\NuGet.Config",
+>>>>>>> c8fd6f09051ce5f6d2893759925749a500b4eec8
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],

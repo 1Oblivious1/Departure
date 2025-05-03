@@ -1,8 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import RegisterForm from './components/RegisterForm';
-import LoginForm from './components/LoginForm';
 import NotFound from './pages/NotFound';
 import MainNavigation from './components/MainNavigation';
 import MapPage from './pages/MapPage';
@@ -10,52 +8,56 @@ import TasksPage from './pages/TasksPage';
 import FeedPage from './pages/FeedPage';
 import ProfilePage from './pages/ProfilePage';
 import AuthDialog from './components/AuthDialog';
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline, Container, Box } from '@mui/material';
+import { SnackbarProvider } from 'notistack';
 
 const getSystemTheme = () => window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 
 const AppContent = () => {
-    const { user, loading } = useAuth();
-    const [isAuthDialogOpen, setIsAuthDialogOpen] = React.useState(false);
-
-    // Проверяем состояние авторизации при загрузке
-    useEffect(() => {
-        if (!loading && !user) {
-            setIsAuthDialogOpen(true);
-        }
-    }, [loading, user]);
-
-    const handleAuthSuccess = () => {
-        setIsAuthDialogOpen(false);
-    };
-
+    const { user, loading, authDialogOpen, closeAuthDialog } = useAuth();
+    
     return (
-        <>
-            <Router>
-                <MainNavigation />
-                <Routes>
-                    <Route path="/" element={<Navigate to="/map" />} />
-                    <Route path="/map" element={<MapPage />} />
-                    <Route path="/tasks" element={<TasksPage />} />
-                    <Route path="/feed" element={<FeedPage />} />
-                    <Route path="/profile/*" element={<ProfilePage />} />
-                    <Route path="*" element={<NotFound />} />
-                </Routes>
-            </Router>
-
-            {/* AuthDialog */}
-            <AuthDialog
-                open={isAuthDialogOpen}
-                onClose={() => setIsAuthDialogOpen(false)}
-                onSuccess={handleAuthSuccess}
-            />
-        </>
+        <Router>
+            <Routes>
+                <Route path="/" element={<Navigate to="/map" />} />
+                <Route path="/map" element={<MapPage />} />
+                <Route path="/tasks" element={
+                    <Container maxWidth="lg" sx={{ pb: 10, pt: 2, width: '100%' }}>
+                        <TasksPage />
+                    </Container>
+                } />
+                <Route path="/feed" element={
+                    <Container maxWidth="lg" sx={{ pb: 10, pt: 2, width: '100%' }}>
+                        <FeedPage />
+                    </Container>
+                } />
+                <Route path="/profile" element={
+                    <Container maxWidth="lg" sx={{ pb: 10, pt: 2, width: '100%' }}>
+                        {user ? <Navigate to={`/profile/${user.userId}`} /> : <ProfilePage />}
+                    </Container>
+                } />
+                <Route path="/profile/:userId" element={
+                    <Container maxWidth="lg" sx={{ pb: 10, pt: 2, width: '100%' }}>
+                        <ProfilePage />
+                    </Container>
+                } />
+                <Route path="*" element={
+                    <Container maxWidth="lg" sx={{ pb: 10, pt: 2, width: '100%' }}>
+                        <NotFound />
+                    </Container>
+                } />
+            </Routes>
+            <MainNavigation />
+            
+            {/* AuthDialog component will access context values directly */}
+            <AuthDialog />
+        </Router>
     );
 };
 
 const App = () => {
-    const [themeMode, setThemeMode] = React.useState(getSystemTheme());
-    const theme = React.useMemo(() => createTheme({
+    const [themeMode, setThemeMode] = useState(getSystemTheme());
+    const theme = useMemo(() => createTheme({
         palette: { mode: themeMode }
     }), [themeMode]);
 
@@ -66,9 +68,15 @@ const App = () => {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
-            <AuthProvider>
-                <AppContent />
-            </AuthProvider>
+            <SnackbarProvider 
+                maxSnack={3} 
+                anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+                autoHideDuration={3000}
+            >
+                <AuthProvider>
+                    <AppContent />
+                </AuthProvider>
+            </SnackbarProvider>
         </ThemeProvider>
     );
 };

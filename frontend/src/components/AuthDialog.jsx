@@ -1,272 +1,627 @@
-import React, { useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box, Typography, Tabs, Tab, IconButton, InputAdornment, CircularProgress } from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { motion } from 'framer-motion';
+import React, { createContext, useState, useEffect, useCallback, useContext, useRef } from 'react';
+import PropTypes from 'prop-types';
 import { useAuth } from '../context/AuthContext';
+import { useSnackbar } from 'notistack';
+import { useNavigate } from 'react-router-dom';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Tabs,
+  Tab,
+  Box,
+  Typography,
+  IconButton,
+  InputAdornment,
+  CircularProgress,
+  Avatar,
+  Paper,
+  Divider,
+  Link,
+  Tooltip,
+  Zoom,
+  useTheme,
+  alpha
+} from '@mui/material';
+import { 
+  Visibility, 
+  VisibilityOff, 
+  PhotoCamera, 
+  PersonAdd, 
+  Login, 
+  QuestionAnswer,
+  ArrowForward
+} from '@mui/icons-material';
+
+// Constants
+const SURVEY_LINK = "https://docs.google.com/forms/d/17QnigYUoyhBFr2geBixffYAipLSIAdsPPkoj85al7sg/edit";
+const DEFAULT_AVATAR_URL = 'https://ui-avatars.com/api/?name=User&background=random';
 
 function TabPanel(props) {
-    const { children, value, index, ...other } = props;
+  const { children, value, index, ...other } = props;
 
-    return (
-        <div
-            role="tabpanel"
-            hidden={value !== index}
-            id={`auth-tabpanel-${index}`}
-            aria-labelledby={`auth-tab-${index}`}
-            {...other}
-        >
-            {value === index && (
-                <Box sx={{ pt: 3 }}>
-                    {children}
-                </Box>
-            )}
-        </div>
-    );
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`auth-tabpanel-${index}`}
+      aria-labelledby={`auth-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    </div>
+  );
 }
 
-export default function AuthDialog({ open, onClose, onSuccess }) {
-    const [tabValue, setTabValue] = useState(0);
-    const [showPassword, setShowPassword] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState({
-        email: '',
-        password: '',
+TabPanel.propTypes = {
+  children: PropTypes.node,
+  index: PropTypes.number.isRequired,
+  value: PropTypes.number.isRequired,
+};
+
+function AuthDialog() {
+  const theme = useTheme();
+  const dialogRef = useRef(null);
+  const { enqueueSnackbar } = useSnackbar();
+  const { login, register, authDialogOpen, closeAuthDialog, handleAuthSuccess, setAuthDialogOpen } = useAuth();
+  const [tabValue, setTabValue] = useState(0);
+  const [formData, setFormData] = useState({
+    name: '',
+    mail: '',
+    password: '',
+    avatarUrl: DEFAULT_AVATAR_URL
+  });
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showAvatarInput, setShowAvatarInput] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (authDialogOpen) {
+      setFormData({
         name: '',
-    });
-    const [formErrors, setFormErrors] = useState({
-        email: '',
+        mail: '',
         password: '',
+        avatarUrl: DEFAULT_AVATAR_URL
+      });
+      setErrors({});
+      setTabValue(0);
+      setShowAvatarInput(false);
+    }
+  }, [authDialogOpen]);
+
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+    setErrors({});
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Map email field to mail for backend compatibility
+    const fieldName = name === 'email' ? 'mail' : name;
+    
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: value
+    }));
+    
+    // Clear error when user starts typing
+    if (errors[fieldName] || (fieldName === 'mail' && errors.email)) {
+      setErrors(prev => ({
+        ...prev,
+        [fieldName]: null,
+        ...(fieldName === 'mail' ? { email: null } : {})
+      }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    
+    if (!formData.mail) {
+      newErrors.email = 'Email обязателен';
+    } else if (!/\S+@\S+\.\S+/.test(formData.mail)) {
+      newErrors.email = 'Неверный формат email';
+    }
+    
+    if (!formData.password) {
+      newErrors.password = 'Пароль обязателен';
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Пароль должен содержать не менее 6 символов';
+    }
+    
+    if (tabValue === 1 && !formData.name) {
+      newErrors.name = 'Имя обязательно';
+    }
+    
+    // Optional validation for avatar URL if provided
+    if (formData.avatarUrl && formData.avatarUrl !== DEFAULT_AVATAR_URL && !isValidUrl(formData.avatarUrl)) {
+      newErrors.avatarUrl = 'Пожалуйста, введите корректный URL изображения';
+    }
+    
+    // Maximum length check to prevent database errors
+    if (formData.avatarUrl && formData.avatarUrl.length > 250) {
+      newErrors.avatarUrl = 'URL слишком длинный (максимум 250 символов)';
+    }
+    
+    if (formData.name && formData.name.length > 50) {
+      newErrors.name = 'Имя слишком длинное (максимум 50 символов)';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Simple URL validation
+  const isValidUrl = (string) => {
+    try {
+      new URL(string);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      if (tabValue === 0) { // Вход
+        const success = await login({
+          mail: formData.mail,
+          password: formData.password
+        });
+        
+        if (success) {
+          enqueueSnackbar('Вход выполнен успешно!', { variant: 'success' });
+          navigate('/feed');
+        } else {
+          enqueueSnackbar('Не удалось войти. Проверьте данные и попробуйте снова.', { variant: 'error' });
+        }
+      } else { // Регистрация
+        const success = await register({
+          name: formData.name,
+          mail: formData.mail,
+          password: formData.password,
+          avatarUrl: formData.avatarUrl || ''
+        });
+        
+        if (success) {
+          enqueueSnackbar('Регистрация успешна!', { variant: 'success' });
+          navigate('/feed');
+        } else {
+          enqueueSnackbar('Не удалось зарегистрироваться. Пожалуйста, попробуйте снова.', { variant: 'error' });
+        }
+      }
+    } catch (error) {
+      console.error('Auth error:', error);
+      const errorMessage = error.response?.data?.message || 'Произошла ошибка. Пожалуйста, попробуйте позже.';
+      enqueueSnackbar(errorMessage, { variant: 'error' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!loading) {
+      // Reset form data
+      setFormData({
         name: '',
-    });
+        mail: '',
+        password: '',
+        avatarUrl: DEFAULT_AVATAR_URL
+      });
+      setErrors({});
+      setShowPassword(false);
+      
+      // Close the dialog
+      closeAuthDialog();
+    }
+  };
 
-    const { login, register } = useAuth();
+  const handleTogglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
 
-    const handleTabChange = (event, newValue) => {
-        setTabValue(newValue);
-        setFormErrors({
-            email: '',
-            password: '',
-            name: '',
-        });
-    };
+  const handleAvatarClick = () => {
+    setShowAvatarInput(!showAvatarInput);
+  };
 
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormData({
-            ...formData,
-            [name]: value
-        });
+  const handleSurveyClick = () => {
+    window.open(SURVEY_LINK, '_blank');
+  };
 
-        if (formErrors[name]) {
-            setFormErrors({
-                ...formErrors,
-                [name]: ''
-            });
+  // Don't render anything if dialog is not open to prevent DOM issues
+  if (!authDialogOpen) return null;
+
+  return (
+    <Dialog 
+      open={authDialogOpen} 
+      onClose={handleClose}
+      aria-labelledby="auth-dialog-title"
+      maxWidth="sm"
+      fullWidth
+      ref={dialogRef}
+      TransitionProps={{
+        mountOnEnter: true,
+        unmountOnExit: true
+      }}
+      PaperProps={{
+        elevation: 12,
+        sx: {
+          borderRadius: 2,
+          bgcolor: 'background.paper',
+          backgroundImage: 'none',
+          overflow: 'hidden',
+          boxShadow: `0 8px 32px ${alpha(theme.palette.primary.dark, 0.2)}`
         }
-    };
-
-    const validateForm = () => {
-        const errors = {};
-        let isValid = true;
-
-        if (!formData.email) {
-            errors.email = 'Email обязателен';
-            isValid = false;
-        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-            errors.email = 'Неверный формат email';
-            isValid = false;
-        }
-
-        if (!formData.password) {
-            errors.password = 'Пароль обязателен';
-            isValid = false;
-        } else if (formData.password.length < 6) {
-            errors.password = 'Пароль должен содержать не менее 6 символов';
-            isValid = false;
-        }
-
-        if (tabValue === 1 && !formData.name) {
-            errors.name = 'Имя обязательно';
-            isValid = false;
-        }
-
-        setFormErrors(errors);
-        return isValid;
-    };
-
-    const handleSubmit = async () => {
-        if (!validateForm()) return;
-
-        setLoading(true);
-
-        try {
-            if (tabValue === 0) {
-                // Вход
-                await login(formData.email, formData.password);
-            } else {
-                // Регистрация
-                await register(formData.name, formData.email, formData.password);
-            }
-
-            onSuccess();
-        } catch (error) {
-            console.error('Ошибка:', error.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleClose = () => {
-        if (!loading) {
-            onClose();
-        }
-    };
-
-    return (
-        <Dialog
-            open={open}
-            onClose={handleClose}
-            maxWidth="xs"
-            fullWidth
-            PaperProps={{
-                sx: {
-                    borderRadius: 2,
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
-                }
+      }}
+    >
+      <DialogTitle id="auth-dialog-title" sx={{ 
+        bgcolor: theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100', 
+        color: 'text.primary',
+        p: 2,
+        textAlign: 'center',
+        fontSize: 24,
+        fontWeight: 'bold',
+        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+      }}>
+        {tabValue === 0 ? 'Вход в аккаунт' : 'Создание аккаунта'}
+      </DialogTitle>
+      
+      <Tabs 
+        value={tabValue} 
+        onChange={handleTabChange} 
+        variant="fullWidth"
+        sx={{ 
+          bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.200',
+          '& .MuiTab-root': {
+            color: 'text.secondary',
+            fontWeight: 'bold',
+            py: 1.5,
+            transition: 'all 0.2s ease'
+          },
+          '& .Mui-selected': {
+            color: 'primary.main'
+          },
+          '& .MuiTabs-indicator': {
+            height: 3,
+            backgroundColor: 'primary.main'
+          }
+        }}
+      >
+        <Tab icon={<Login />} label="Вход" iconPosition="start" />
+        <Tab icon={<PersonAdd />} label="Регистрация" iconPosition="start" />
+      </Tabs>
+      
+      <form onSubmit={handleSubmit} noValidate>
+        <DialogContent sx={{ 
+          p: 3, 
+          bgcolor: 'background.paper'
+        }}>
+          <TabPanel value={tabValue} index={0}>
+            <Box sx={{ py: 2 }}>
+              <TextField
+                margin="normal"
+                name="email"
+                label="Email"
+                type="email"
+                fullWidth
+                variant="outlined"
+                value={formData.mail}
+                onChange={handleInputChange}
+                error={!!errors.email}
+                helperText={errors.email}
+                disabled={loading}
+                sx={{ 
+                  mb: 3,
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': {
+                      borderColor: alpha(theme.palette.text.primary, 0.2),
+                    },
+                    '&:hover fieldset': {
+                      borderColor: 'primary.main',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: 'primary.main',
+                    }
+                  }
+                }}
+                placeholder="example@mail.com"
+                inputProps={{ maxLength: 100 }}
+              />
+              
+              <TextField
+                margin="normal"
+                name="password"
+                label="Пароль"
+                type={showPassword ? 'text' : 'password'}
+                fullWidth
+                variant="outlined"
+                value={formData.password}
+                onChange={handleInputChange}
+                error={!!errors.password}
+                helperText={errors.password}
+                disabled={loading}
+                sx={{ 
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': {
+                      borderColor: alpha(theme.palette.text.primary, 0.2),
+                    },
+                    '&:hover fieldset': {
+                      borderColor: 'primary.main',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: 'primary.main',
+                    }
+                  }
+                }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={handleTogglePasswordVisibility}
+                        edge="end"
+                        sx={{ color: 'text.secondary' }}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Box>
+          </TabPanel>
+          
+          <TabPanel value={tabValue} index={1}>
+            <Box sx={{ py: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {tabValue === 1 && (
+                <Box sx={{ mb: 3, textAlign: 'center' }}>
+                  <Avatar
+                    src={formData.avatarUrl || DEFAULT_AVATAR_URL}
+                    alt={formData.name || "User"}
+                    sx={{ 
+                      width: 80, 
+                      height: 80, 
+                      mx: 'auto',
+                      mb: 1,
+                      cursor: 'pointer',
+                      boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.2)}`,
+                      border: `2px solid ${theme.palette.primary.light}`
+                    }}
+                    onClick={handleAvatarClick}
+                  />
+                  <IconButton 
+                    color="primary" 
+                    aria-label="upload picture" 
+                    component="span"
+                    onClick={handleAvatarClick}
+                    size="small"
+                    sx={{ 
+                      mt: -5, 
+                      backgroundColor: theme.palette.background.paper, 
+                      boxShadow: 2,
+                      '&:hover': {
+                        backgroundColor: alpha(theme.palette.primary.light, 0.2),
+                        color: 'primary.main'
+                      }
+                    }}
+                  >
+                    <PhotoCamera />
+                  </IconButton>
+                  
+                  {showAvatarInput && (
+                    <TextField
+                      margin="dense"
+                      name="avatarUrl"
+                      label="URL Аватарки"
+                      type="url"
+                      fullWidth
+                      variant="outlined"
+                      value={formData.avatarUrl === DEFAULT_AVATAR_URL ? '' : formData.avatarUrl}
+                      onChange={handleInputChange}
+                      error={!!errors.avatarUrl}
+                      helperText={errors.avatarUrl || "Оставьте пустым для аватара по умолчанию"}
+                      placeholder="https://example.com/your-avatar.jpg"
+                      disabled={loading}
+                      sx={{ 
+                        mt: 2,
+                        '& .MuiOutlinedInput-root': {
+                          '& fieldset': {
+                            borderColor: alpha(theme.palette.text.primary, 0.2),
+                          },
+                          '&:hover fieldset': {
+                            borderColor: 'primary.main',
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: 'primary.main',
+                          }
+                        }
+                      }}
+                    />
+                  )}
+                </Box>
+              )}
+              
+              <TextField
+                margin="normal"
+                name="name"
+                label="Имя"
+                type="text"
+                fullWidth
+                variant="outlined"
+                value={formData.name}
+                onChange={handleInputChange}
+                error={!!errors.name}
+                helperText={errors.name}
+                disabled={loading}
+                inputProps={{ maxLength: 50 }}
+                sx={{ 
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': {
+                      borderColor: alpha(theme.palette.text.primary, 0.2),
+                    },
+                    '&:hover fieldset': {
+                      borderColor: 'primary.main',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: 'primary.main',
+                    }
+                  }
+                }}
+              />
+              
+              <TextField
+                margin="normal"
+                name="email"
+                label="Email"
+                type="email"
+                fullWidth
+                variant="outlined"
+                value={formData.mail}
+                onChange={handleInputChange}
+                error={!!errors.email}
+                helperText={errors.email}
+                disabled={loading}
+                inputProps={{ maxLength: 100 }}
+                sx={{ 
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': {
+                      borderColor: alpha(theme.palette.text.primary, 0.2),
+                    },
+                    '&:hover fieldset': {
+                      borderColor: 'primary.main',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: 'primary.main',
+                    }
+                  }
+                }}
+              />
+              
+              <TextField
+                margin="normal"
+                name="password"
+                label="Пароль"
+                type={showPassword ? 'text' : 'password'}
+                fullWidth
+                variant="outlined"
+                value={formData.password}
+                onChange={handleInputChange}
+                error={!!errors.password}
+                helperText={errors.password}
+                disabled={loading}
+                sx={{ 
+                  '& .MuiOutlinedInput-root': {
+                    '& fieldset': {
+                      borderColor: alpha(theme.palette.text.primary, 0.2),
+                    },
+                    '&:hover fieldset': {
+                      borderColor: 'primary.main',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: 'primary.main',
+                    }
+                  }
+                }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label="toggle password visibility"
+                        onClick={handleTogglePasswordVisibility}
+                        edge="end"
+                        sx={{ color: 'text.secondary' }}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              
+              <Box sx={{ mt: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Button
+                  startIcon={<QuestionAnswer />}
+                  color="secondary"
+                  variant="outlined"
+                  onClick={handleSurveyClick}
+                  sx={{ 
+                    mt: 1,
+                    borderRadius: 4,
+                    px: 2,
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.secondary.main, 0.1)
+                    }
+                  }}
+                >
+                  Пройти опрос
+                </Button>
+              </Box>
+            </Box>
+          </TabPanel>
+        </DialogContent>
+        
+        <DialogActions sx={{ 
+          p: 3, 
+          pt: 1, 
+          bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+          borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+        }}>
+          <Button 
+            onClick={handleClose} 
+            color="primary" 
+            disabled={loading}
+            variant="outlined"
+            sx={{
+              borderRadius: 2,
+              px: 3,
+              '&:hover': {
+                borderColor: theme.palette.primary.main,
+                backgroundColor: alpha(theme.palette.primary.main, 0.05)
+              }
             }}
-        >
-            <DialogTitle sx={{ pb: 1 }}>
-                <Typography variant="h5" fontWeight={600} textAlign="center">
-                    {tabValue === 0 ? 'Вход в аккаунт' : 'Регистрация'}
-                </Typography>
-            </DialogTitle>
-
-            <DialogContent>
-                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                    <Tabs
-                        value={tabValue}
-                        onChange={handleTabChange}
-                        variant="fullWidth"
-                        sx={{ mb: 1 }}
-                    >
-                        <Tab label="Вход" />
-                        <Tab label="Регистрация" />
-                    </Tabs>
-                </Box>
-
-                <TabPanel value={tabValue} index={0}>
-                    <TextField
-                        margin="dense"
-                        name="email"
-                        label="Email"
-                        type="email"
-                        fullWidth
-                        variant="outlined"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        error={!!formErrors.email}
-                        helperText={formErrors.email}
-                        sx={{ mb: 2 }}
-                    />
-                    <TextField
-                        margin="dense"
-                        name="password"
-                        label="Пароль"
-                        type={showPassword ? "text" : "password"}
-                        fullWidth
-                        variant="outlined"
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        error={!!formErrors.password}
-                        helperText={formErrors.password}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <IconButton
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        edge="end"
-                                    >
-                                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                                    </IconButton>
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                </TabPanel>
-
-                <TabPanel value={tabValue} index={1}>
-                    <TextField
-                        margin="dense"
-                        name="name"
-                        label="Имя"
-                        type="text"
-                        fullWidth
-                        variant="outlined"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        error={!!formErrors.name}
-                        helperText={formErrors.name}
-                        sx={{ mb: 2 }}
-                    />
-                    <TextField
-                        margin="dense"
-                        name="email"
-                        label="Email"
-                        type="email"
-                        fullWidth
-                        variant="outlined"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        error={!!formErrors.email}
-                        helperText={formErrors.email}
-                        sx={{ mb: 2 }}
-                    />
-                    <TextField
-                        margin="dense"
-                        name="password"
-                        label="Пароль"
-                        type={showPassword ? "text" : "password"}
-                        fullWidth
-                        variant="outlined"
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        error={!!formErrors.password}
-                        helperText={formErrors.password}
-                        InputProps={{
-                            endAdornment: (
-                                <InputAdornment position="end">
-                                    <IconButton
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        edge="end"
-                                    >
-                                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                                    </IconButton>
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
-                </TabPanel>
-            </DialogContent>
-
-            <DialogActions sx={{ px: 3, pb: 3 }}>
-                <Button
-                    onClick={handleClose}
-                    color="inherit"
-                    disabled={loading}
-                >
-                    Отмена
-                </Button>
-                <Button
-                    onClick={handleSubmit}
-                    variant="contained"
-                    color="primary"
-                    disabled={loading}
-                    sx={{ minWidth: 100 }}
-                    startIcon={loading ? <CircularProgress size={20} color="inherit" /> : null}
-                >
-                    {loading ? 'Загрузка...' : tabValue === 0 ? 'Войти' : 'Зарегистрироваться'}
-                </Button>
-            </DialogActions>
-        </Dialog>
-    );
+          >
+            Отмена
+          </Button>
+          <Button 
+            type="submit" 
+            color="primary" 
+            variant="contained" 
+            endIcon={loading ? <CircularProgress size={20} color="inherit" /> : <ArrowForward />}
+            disabled={loading}
+            sx={{ 
+              ml: 2,
+              borderRadius: 2,
+              px: 3,
+              boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`,
+              '&:hover': {
+                boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
+                backgroundColor: theme.palette.primary.dark
+              }
+            }}
+          >
+            {tabValue === 0 ? 'Войти' : 'Зарегистрироваться'}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
+  );
 }
+
+export default AuthDialog;

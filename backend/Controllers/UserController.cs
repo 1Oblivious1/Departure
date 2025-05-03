@@ -151,11 +151,11 @@ namespace backend.Controllers
         }
 
         [HttpGet("favorites/status")]
-        public ActionResult<int> CheckFavoriteStatus([FromBody] FavoritePostRequest request)
+        public ActionResult<int> CheckFavoriteStatus([FromQuery] int userId, [FromQuery] int postId)
         {
             try
             {
-                var status = _userService.CheckFavoriteStatus(request.UserId, request.PostId);
+                var status = _userService.CheckFavoriteStatus(userId, postId);
                 return Ok(status);
             }
             catch (Exception ex)

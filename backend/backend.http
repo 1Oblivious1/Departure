@@ -9,8 +9,8 @@ POST {{backend_HostAddress}}/api/auth/register
 Content-Type: application/json
 
 {
-  "name": "test1",
-  "mail": "test1@example.com",
+  "name": "Alex",
+  "mail": "alex@example.com",
   "password": "123456",
   "avatarUrl": "https://i.pinimg.com/originals/d6/7c/74/d67c74e8c73a7c31005702fbe3a0b46a.jpg"
 }
@@ -43,7 +43,7 @@ Content-Type: application/json
     "title": "Найти достопримечательность",
     "description": "Посетить и сфотографировать достопримечательность города",
     "difficulty": 1,
-    "latitude": 55.7558,
+    "latitude": 65.7558,
     "longitude": 37.6173
 }
 
@@ -55,7 +55,7 @@ Content-Type: application/json
     "title": "Найти лес",
     "description": "Посетить и сфотографировать лес",
     "difficulty": 0,
-    "latitude": 54.7558,
+    "latitude": 51.7558,
     "longitude": 38.6173
 }
 
@@ -84,7 +84,7 @@ Content-Type: application/json
 {
     "userId": 1,
     "taskId": 1,
-    "photoUrl": "https://example.com/photo.jpg",
+    "photoUrl": "https://i1.sndcdn.com/artworks-000291566802-hcelgf-t1080x1080.jpg",
     "description": "Отличное задание! Удалось посетить все места."
 }
 
