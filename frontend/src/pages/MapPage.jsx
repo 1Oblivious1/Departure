@@ -266,7 +266,7 @@ const MapPage = () => {
             {/* Yandex Map - Always render the map */}
             <YMaps
                 query={{
-                    apikey: "5bd46de5-7456-4c6f-9a8a-58196a8fe166"
+                    apikey: "APIKEY"
                 }}
             >
                 <Map
